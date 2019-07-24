@@ -52,8 +52,10 @@ set(GUI_BIN_DIR ${GUI_BASE_DIR}/Build/${CONFIGURATION_FOLDER})
 if (NOT CMAKE_LIBRARY_ARCHITECTURE)
 	if (CMAKE_SIZEOF_VOID_P EQUAL 8)
 		set(CMAKE_LIBRARY_ARCHITECTURE "x64")
+		set(NEUROPIX_LINK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Source/npx2-api/lib64/NeuropixAPI_x64_2_4.lib)
 	else()
 		set(CMAKE_LIBRARY_ARCHITECTURE "x86")
+		set(NEUROPIX_LINK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Source/npx2-api/lib64/NeuropixAPI_x86_2_4.lib)
 	endif()
 endif()
 
@@ -90,6 +92,10 @@ foreach( src_file IN ITEMS ${SRC_FILES})
 	string(REPLACE "/" "\\" group_name "${src_path_rel}")
 	source_group("${group_name}" FILES "${src_file}")
 endforeach()
+
+set(NEUROPIX_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Source/npx2-api)
+target_include_directories(${PLUGIN_NAME} PRIVATE ${NEUROPIX_INCLUDE_DIR})
+target_link_libraries(${PLUGIN_NAME} ${NEUROPIX_LINK_DIR})
 
 #additional libraries, if needed
 #find_package(LIBNAME)

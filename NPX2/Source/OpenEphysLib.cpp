@@ -49,7 +49,7 @@ extern "C" EXPORT int getPluginInfo(int index, Plugin::PluginInfo* info)
 	case 0:
 		info->type = PluginType::PLUGIN_TYPE_DATA_THREAD;
 		info->dataThread.name = "NPX2";
-		info->dataThread.creator = &createDataThread<NPX2Thread>
+		info->dataThread.creator = &createDataThread<NPX2Thread>;
 		break;
 	default:
 		return -1;
