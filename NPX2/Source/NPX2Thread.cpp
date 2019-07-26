@@ -38,7 +38,23 @@ GenericEditor* NPX2Thread::createEditor(SourceNode* sn)
 
 NPX2Thread::NPX2Thread(SourceNode* sn) : DataThread(sn)
 {
-    printf("***Called NPX2Thread Constructor!\n");
+    
+    np::NP_ErrorCode ec; 
+
+    uint32_t availableSlotMask;
+
+    np::getAvailableSlots(&availableSlotMask);
+
+    for (int slot = 0; slot < MAX_NUM_SLOTS; slot++)
+    {
+        if ((availableSlotMask >> slot) & 1)
+        {
+            basestations.add(new Basestation(slot));
+        }
+    }
+
+    printf("Found %d basestations...\n", basestations.size());
+    
 }
 
 NPX2Thread::~NPX2Thread()
@@ -47,6 +63,7 @@ NPX2Thread::~NPX2Thread()
 
 bool NPX2Thread::foundInputSource()
 {
+    //Colors the plugin orange indicating input source is ready...
 	return false;
 }
 
@@ -86,7 +103,7 @@ unsigned int NPX2Thread::getNumSubProcessors() const
 /** Returns the number of continuous headstage channels the data source can provide.*/
 int NPX2Thread::getNumDataOutputs(DataChannel::DataChannelTypes type, int subProcessorIdx) const
 {
-	return 2;
+	return 1;
 }
 
 /** Returns the number of TTL channels that each subprocessor generates*/

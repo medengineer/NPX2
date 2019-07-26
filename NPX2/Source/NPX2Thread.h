@@ -21,15 +21,16 @@
 
 */
 
-#ifndef NPX2THREAD_H_DEFINED
-#define NPX2THREAD_H_DEFINED
+#ifndef __NPX2THREAD_H_DEFINED__
+#define __NPX2THREAD_H_DEFINED__
 
 #include <DataThreadHeaders.h>
 #include <stdio.h>
 #include <string.h>
 
+#include "NPX2Components.h"
+
 class SourceNode;
-class NPX2Thread;
 
 class NPX2Thread : public DataThread
 {
@@ -90,5 +91,8 @@ public:
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NPX2Thread);
 private:
         CriticalSection displayMutex;
+
+        OwnedArray<Basestation> basestations;
+
 };
 #endif  // NEUROPIX2THREAD_H_DEFINED

@@ -30,9 +30,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "npx2-api/NeuropixAPI.h"
 
+#define MAX_NUM_SLOTS 32
 #define NUM_CHANNELS 384
 #define NUM_ELECTRODES 1280
 #define NUM_REF_ELECTRODES 5
+#define NUM_PORTS 4
+#define NUM_DOCKS 2
 #define SAMPLECOUNT 64
 
 class BasestationConnectBoard;
@@ -79,7 +82,7 @@ public:
 	void initializeProbes();
 
 	void setChannels(int slot, int port, int dock, Array<int> channelStatus);
-	void setReferences(int slot, int port, int dock, np::channelreference_t refId, np::electrodebanks_t electrodeBank);
+	void setReferences(int slot, int port, int dock, np::channelreference_t refId, np::electrodebanks_t bank);
 	void setGains(int slot, int port, int dock, unsigned char apGain, unsigned char lfpGain);
 	void setApFilterState(int slot, int port, int dock, bool filterState);
 
@@ -125,6 +128,7 @@ public:
 	Basestation* basestation;
 	int port;
 	int dock;
+	int shank;
 
 	DataBuffer* stream;
 	int64 timestamp;
@@ -140,13 +144,13 @@ public:
 	void init();
 
 	void setChannels(Array<int> channelStatus);
-	Array<electrodebanks_t> channelMap;
+	Array<np::electrodebanks_t> channelMap;
 
 	Array<int> apGains;
 	Array<int> lfpGains;
 
 	void setApFilterState(bool);
-	void setReferences(np::channelreference_t refId, np::electrodebanks_t refElectrodeBank);
+	void setReferences(np::channelreference_t refId, np::electrodebanks_t refBank);
 	void setGains(unsigned char apGain, unsigned char lfpGain);
 
 	void calibrate();
@@ -168,14 +172,14 @@ public:
 	void run();
 
 	uint64 eventCode;
+
+private:
+	 
 	Array<int> gains;
 
 	np::PacketInfo* pckinfo;
 	int16_t* data;
 	np::electrodePacket packet[SAMPLECOUNT];
-
-private:
-	 
 
 };
 

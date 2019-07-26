@@ -138,10 +138,10 @@ void Probe::getInfo()
 	part_number = String(pn);
 }
 
-Probe::Probe(Basestation* bs, int port, int dock) : Thread("probe_" + String(port)), basestation(bs), port(port), dock(dock), fifoFillPercentage(0.0f)
+Probe::Probe(Basestation* bs, int port, int dock) : Thread("probe_" + String(port)), 
+	basestation(bs), port(port), dock(dock), shank(0)
 {
 
-	shank = 0;
 	setStatus(0);
 	setSelected(false);
 
@@ -165,6 +165,8 @@ Probe::Probe(Basestation* bs, int port, int dock) : Thread("probe_" + String(por
 	gains.add(1500.0f);
 	gains.add(2000.0f);
 	gains.add(3000.0f);
+
+	fifoFillPercentage = 0.0f;
 
 }
 
@@ -302,7 +304,7 @@ void Probe::setGains(unsigned char apGain, unsigned char lfpGain)
 }
 
 
-void Probe::setReferences(np2::channelreference_t refId, np2::electrodebanks_t refBank)
+void Probe::setReferences(np::channelreference_t refId, np::electrodebanks_t refBank)
 {
 	for (int channel = 0; channel < 384; channel++)
 		errorCode = np::setReference(basestation->slot, port, dock, channel, shank, refId, refBank);
@@ -326,9 +328,9 @@ void Probe::run()
 			basestation->slot,
 			port,
 			dock,
-			0,  
-			&pckinfo,
-			&data,
+			static_cast<np::streamsource_t>(0),  
+			pckinfo,
+			data,
 			samplesToRead,
 			&actualRead);
 
@@ -386,7 +388,7 @@ void Probe::run()
 		}
 		else if (errorCode != np::SUCCESS)
 		{
-			std::cout << "Error code: " << np2_error << "for Basestation " << int(basestation->slot) << ", probe " << int(port) << std::endl;
+			std::cout << "Error code: " << errorCode << "for Basestation " << int(basestation->slot) << ", probe " << int(port) << std::endl;
 		}
 	}
 
@@ -457,7 +459,7 @@ void Basestation::init()
 			std::cout << "  FAILED!." << std::endl;
 		else
 		{
-			setGains(this->slot, probes[i]->port, 3, 2); // set defaults
+			setGains(this->slot, probes[i]->port, probes[i]->dock, 3, 2); // set defaults
 			probes[i]->setStatus(1);
 			std::cout << "  Success!" << std::endl;
 		}
@@ -542,7 +544,7 @@ float Basestation::getFillPercentage()
 
 	for (int i = 0; i < getProbeCount(); i++)
 	{
-		//std::cout << "Percentage for probe " << i << ": " << probes[i]->fifoFillPercentage << std::endl;
+		//TODO: Verify this makes sense...
 
 		if (probes[i]->fifoFillPercentage > perc)
 			perc = probes[i]->fifoFillPercentage;
@@ -560,7 +562,7 @@ void Basestation::initializeProbes()
 
 		for (int i = 0; i < probes.size(); i++)
 		{
-			errorCode = np::setOPMODE(slot, probes[i]->port, probes[i]->dock, np2::probe_opmode_t::RECORDING);
+			errorCode = np::setOPMODE(slot, probes[i]->port, probes[i]->dock, np::probe_opmode_t::RECORDING);
 			bool ledEnable = false;
 			errorCode = np::setHSLed(slot, probes[i]->port, ledEnable);
 
@@ -569,8 +571,7 @@ void Basestation::initializeProbes()
 			if (errorCode == np::SUCCESS)
 			{
 				std::cout << "     Probe initialized." << std::endl;
-				probes[i]->ap_timestamp = 0;
-				probes[i]->lfp_timestamp = 0;
+				probes[i]->timestamp = 0;
 				probes[i]->eventCode = 0;
 				probes[i]->setStatus(1); //READY
 			}
@@ -592,11 +593,9 @@ void Basestation::startAcquisition()
 	for (int i = 0; i < probes.size(); i++)
 	{
 		std::cout << "Probe " << int(probes[i]->port) << " setting timestamp to 0" << std::endl;
-		probes[i]->ap_timestamp = 0;
-		probes[i]->lfp_timestamp = 0;
+		probes[i]->timestamp = 0;
 		//std::cout << "... and clearing buffers" << std::endl;
-		probes[i]->apBuffer->clear();
-		probes[i]->lfpBuffer->clear();
+		probes[i]->stream->clear();
 		std::cout << "  Starting thread." << std::endl;
 		probes[i]->startThread();
 	}
@@ -613,13 +612,13 @@ void Basestation::stopAcquisition()
 	errorCode = np::arm(slot);
 }
 
-void Basestation::setChannels(int slot, int port, Array<int> channelMap)
+void Basestation::setChannels(int slot, int port, int dock, Array<int> channelMap)
 {
 	if (slot == this->slot)
 	{
 		for (int i = 0; i < probes.size(); i++)
 		{
-			if (probes[i]->port == port)
+			if (probes[i]->port == port && probes[i]->dock == dock)
 			{
 				probes[i]->setChannels(channelMap);
 				std::cout << "Set electrode-channel connections " << std::endl;
@@ -628,13 +627,13 @@ void Basestation::setChannels(int slot, int port, Array<int> channelMap)
 	}
 }
 
-void Basestation::setApFilterState(int slot, int port, bool disableHighPass)
+void Basestation::setApFilterState(int slot, int port, int dock, bool disableHighPass)
 {
 	if (slot == this->slot)
 	{
 		for (int i = 0; i < probes.size(); i++)
 		{
-			if (probes[i]->port == port)
+			if (probes[i]->port == port && probes[i]->dock == dock)
 			{
 				probes[i]->setApFilterState(disableHighPass);
 				std::cout << "Set all filters to " << int(disableHighPass) << std::endl;
@@ -650,7 +649,7 @@ void Basestation::setGains(int slot, int port, int dock, unsigned char apGain, u
 	{
 		for (int i = 0; i < probes.size(); i++)
 		{
-			if (probes[i]->port == port)
+			if (probes[i]->port == port && probes[i]->dock == dock)
 			{
 				probes[i]->setGains(apGain, lfpGain);
 				std::cout << "Set all gains to " << int(apGain) << ":" << int(lfpGain) << std::endl;
@@ -660,7 +659,7 @@ void Basestation::setGains(int slot, int port, int dock, unsigned char apGain, u
 	
 }
 
-void Basestation::setReferences(int slot, int port, int dock, np2::channelreference_t refId, np2::electrodebanks_t refElectrodeBank)
+void Basestation::setReferences(int slot, int port, int dock, np::channelreference_t refId, np::electrodebanks_t refBank)
 {
 	if (slot == this->slot)
 	{
@@ -668,8 +667,8 @@ void Basestation::setReferences(int slot, int port, int dock, np2::channelrefere
 		{
 			if (probes[i]->port == port && probes[i]->dock == dock)
 			{
-				probes[i]->setReferences(refId, refElectrodeBank);
-				std::cout << "Set all references to " << refId << ":" << int(refElectrodeBank) << std::endl;
+				probes[i]->setReferences(refId, refBank);
+				std::cout << "Set all references to " << refId << ":" << int(refBank) << std::endl;
 			}
 		}
 	}
