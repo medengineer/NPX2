@@ -30,13 +30,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "npx2-api/NeuropixAPI.h"
 
-#define MAX_NUM_SLOTS 32
-#define NUM_CHANNELS 384
-#define NUM_ELECTRODES 1280
-#define NUM_REF_ELECTRODES 5
-#define NUM_PORTS 4
-#define NUM_DOCKS 2
-#define SAMPLECOUNT 64
+#define MAX_NUM_SLOTS 		32
+#define NUM_CHANNELS 		384
+#define NUM_ELECTRODES 		1280
+#define NUM_REF_ELECTRODES 	5
+#define NUM_PORTS 			4
+#define NUM_DOCKS 			2
+#define SAMPLECOUNT 		64	
 
 class BasestationConnectBoard;
 class Flex;
@@ -55,7 +55,7 @@ public:
 	virtual void getInfo() = 0;
 };
 
-class NeuropixAPI : public NeuropixComponent
+class Neuropix2API : public NeuropixComponent
 {
 public:
 	void getInfo();
@@ -177,9 +177,12 @@ private:
 	 
 	Array<int> gains;
 
-	np::PacketInfo* pckinfo;
-	int16_t* data;
-	np::electrodePacket packet[SAMPLECOUNT];
+	np::PacketInfo pckinfo[SAMPLECOUNT];
+	int16_t data[NUM_CHANNELS];
+	size_t samplesToRead = NUM_CHANNELS;
+	size_t actualRead;
+
+
 
 };
 

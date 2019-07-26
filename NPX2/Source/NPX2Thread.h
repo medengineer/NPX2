@@ -31,14 +31,30 @@
 #include "NPX2Components.h"
 
 class SourceNode;
+class NPX2Thread;
 
-class NPX2Thread : public DataThread
+class RecordingTimer : public Timer
+{
+
+public:
+
+    RecordingTimer(NPX2Thread* t_);
+    void timerCallback();
+
+    NPX2Thread* thread;
+};
+
+class NPX2Thread : public DataThread, public Timer
 {
 
 public:
 
         NPX2Thread(SourceNode* sn);
         ~NPX2Thread();
+
+        String getInfoString();
+
+        XmlElement getInfoXml();
 
         void openConnection();
         void closeConnection();
@@ -47,11 +63,12 @@ public:
         bool updateBuffer();
         void updateChannels();
 
-        /** Initializes data transfer.*/
         bool startAcquisition() override;
-
-        /** Stops data transfer.*/
         bool stopAcquisition() override;
+
+        void timerCallback();
+        void startRecording();
+        void stopRecording();
 
         // DataThread Methods
 
@@ -93,17 +110,31 @@ public:
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NPX2Thread);
 private:
-        CriticalSection displayMutex;
+
+        Neuropix2API api;
 
         OwnedArray<Basestation> basestations;
 
+        //Initialization
         bool basestationAvailable;
-
         int totalProbes;
+        bool probesInitialized;
 
         int selectedSlot;
         int selectedPort;
         int selectedDock;
+
+        //Acquisition-related
+        int counter; //?
+        int maxCounter; //?
+        int last_npx_timestamp; //?
+
+        //Recording-related
+        int recordingNumber;
+        RecordingTimer recordingTimer;
+        bool isRecording;
+
+        CriticalSection displayMutex;
 
 };
 #endif  // NEUROPIX2THREAD_H_DEFINED

@@ -31,7 +31,7 @@ NeuropixComponent::NeuropixComponent() : serial_number(-1), part_number(""), ver
 {
 }
 
-void NeuropixAPI::getInfo()
+void Neuropix2API::getInfo()
 {
 	uint8_t version_major;
 	uint8_t version_minor;
@@ -223,6 +223,7 @@ void Probe::setChannels(Array<int> channelStatus)
 {
 
 	//Reset all channel connections to None. 
+	/*
 	for (int channel = 0; channel < channelMap.size(); channel++)
 	{
 		errorCode = np::selectElectrode(basestation->slot, port, dock, channel, shank, np::electrodebanks_t::None);
@@ -270,6 +271,7 @@ void Probe::setChannels(Array<int> channelStatus)
 		std::cout << "Failed to write channel config " << std::endl;
 	else
 		std::cout << "Successfully wrote channel config " << std::endl;
+	*/
 
 }
 
@@ -306,11 +308,13 @@ void Probe::setGains(unsigned char apGain, unsigned char lfpGain)
 
 void Probe::setReferences(np::channelreference_t refId, np::electrodebanks_t refBank)
 {
+	/*
 	for (int channel = 0; channel < 384; channel++)
 		errorCode = np::setReference(basestation->slot, port, dock, channel, shank, refId, refBank);
 
 	bool readCheck = false;
 	errorCode = np::writeProbeConfiguration(basestation->slot, port, dock, readCheck);
+	*/
 
 	std::cout << "Wrote reference " << int(refId) << ", " << int(refBank) << " with error code " << errorCode << std::endl;
 }
@@ -318,10 +322,16 @@ void Probe::setReferences(np::channelreference_t refId, np::electrodebanks_t ref
 void Probe::run()
 {
 
+	int count = 0;
+
 	while (!threadShouldExit())
 	{
-	
-		size_t samplesToRead = SAMPLECOUNT;
+
+		count++;
+
+		np::PacketInfo pckinfo[SAMPLECOUNT];
+		int16_t data[NUM_CHANNELS];
+		size_t samplesToRead = NUM_CHANNELS;
 		size_t actualRead;
 
 		errorCode = np::readPacket(
@@ -329,16 +339,38 @@ void Probe::run()
 			port,
 			dock,
 			static_cast<np::streamsource_t>(0),  
-			pckinfo,
-			data,
+			&pckinfo[0],
+			&data[0],
 			samplesToRead,
 			&actualRead);
 
+		size_t packetsavailable;
+		size_t headroom;
+
+		errorCode = np::getPacketFifoStatus(
+			basestation->slot,
+			port,
+			dock,
+			static_cast<np::streamsource_t>(0),
+			&packetsavailable,
+			&headroom);
+
+		if (errorCode == np::SUCCESS && actualRead > 0 && count % 10000 == 0)
+		{
+			printf("[NPX2C] np::readPacket actualRead: %d packetsAvailable: %d, headroom %d, data[0] %d\n", actualRead, packetsavailable, headroom, data[0]);
+			printf("[NPX2C] np::readPacket packetInfo: %d, %d, %d,\n", pckinfo->Timestamp, pckinfo->Status, pckinfo->payloadlength); fflush(stdout);
+		}
+
+		//NP_EXPORT NP_ErrorCode NP_APIC readPacket(int slotID, int portID, int dock, streamsource_t source, struct PacketInfo* pckinfo, int16_t* data, size_t samplestoread, size_t* actualread);
+		//printf("readPacket: PacketInfo: Timestamp:%d, Status:%d, payloadlength:%d\n", pckinfo->Timestamp, pckinfo->Status, pckinfo->payloadlength);
+
+		/*
 		if (errorCode == np::SUCCESS && actualRead > 0)
 		{
 
-			printf("Timestamp: %d, Status: %d, Size: %d", pckinfo->Timestamp, pckinfo->Status, pckinfo->payloadlength);
-			/*
+			printf("np::SUCCESS && actualRead > 0\n"); fflush(stdout);
+
+			//printf("Timestamp: %d, Status: %d, Size: %d", pckinfo->Timestamp, pckinfo->Status, pckinfo->payloadlength);
 			for (int packetNum = 0; packetNum < count; packetNum++)
 			{
 				for (int i = 0; i < 12; i++)
@@ -383,13 +415,13 @@ void Probe::run()
 				lfpBuffer->addToBuffer(lfpSamples, &lfp_timestamp, &eventCode, 1);
 
 			}
-			*/
 
 		}
 		else if (errorCode != np::SUCCESS)
 		{
-			std::cout << "Error code: " << errorCode << "for Basestation " << int(basestation->slot) << ", probe " << int(port) << std::endl;
+			//std::cout << "Error code: " << errorCode << "for Basestation " << int(basestation->slot) << ", probe " << int(port) << std::endl;
 		}
+		*/
 	}
 
 }
@@ -566,7 +598,8 @@ void Basestation::initializeProbes()
 			bool ledEnable = false;
 			errorCode = np::setHSLed(slot, probes[i]->port, ledEnable);
 
-			probes[i]->calibrate();
+			//TODO: Confirm 2.0 probes DO NOT require calibration.
+			//probes[i]->calibrate();
 
 			if (errorCode == np::SUCCESS)
 			{
@@ -590,6 +623,8 @@ void Basestation::initializeProbes()
 
 void Basestation::startAcquisition()
 {
+	printf("[NPXC2] Basestation::startAcquisition()\n");
+	printf("[NPXC2] probes.size() = %d\n", probes.size());
 	for (int i = 0; i < probes.size(); i++)
 	{
 		std::cout << "Probe " << int(probes[i]->port) << " setting timestamp to 0" << std::endl;
@@ -614,6 +649,7 @@ void Basestation::stopAcquisition()
 
 void Basestation::setChannels(int slot, int port, int dock, Array<int> channelMap)
 {
+	/*
 	if (slot == this->slot)
 	{
 		for (int i = 0; i < probes.size(); i++)
@@ -625,10 +661,12 @@ void Basestation::setChannels(int slot, int port, int dock, Array<int> channelMa
 			}
 		}
 	}
+	*/
 }
 
 void Basestation::setApFilterState(int slot, int port, int dock, bool disableHighPass)
 {
+	/*
 	if (slot == this->slot)
 	{
 		for (int i = 0; i < probes.size(); i++)
@@ -640,11 +678,13 @@ void Basestation::setApFilterState(int slot, int port, int dock, bool disableHig
 			}
 		}
 	}
+	*/
 	
 }
 
 void Basestation::setGains(int slot, int port, int dock, unsigned char apGain, unsigned char lfpGain)
 {
+	/*
 	if (slot == this->slot)
 	{
 		for (int i = 0; i < probes.size(); i++)
@@ -656,6 +696,7 @@ void Basestation::setGains(int slot, int port, int dock, unsigned char apGain, u
 			}
 		}
 	}
+	*/
 	
 }
 

@@ -36,15 +36,21 @@ GenericEditor* NPX2Thread::createEditor(SourceNode* sn)
     return new NPX2Editor(sn, this, true);
 }
 
-NPX2Thread::NPX2Thread(SourceNode* sn) : DataThread(sn)
+NPX2Thread::NPX2Thread(SourceNode* sn) : DataThread(sn), recordingTimer(this)
 {
-    
+
+    basestationAvailable = false;
+    probesInitialized = false;
+    isRecording = false;
+    recordingNumber = 0;
+
     np::NP_ErrorCode ec; 
 
     uint32_t availableSlotMask;
 
     np::getAvailableSlots(&availableSlotMask);
 
+    totalProbes = 0;
     for (int slot = 0; slot < MAX_NUM_SLOTS; slot++)
     {
         if ((availableSlotMask >> slot) & 1)
@@ -52,7 +58,9 @@ NPX2Thread::NPX2Thread(SourceNode* sn) : DataThread(sn)
             basestations.add(new Basestation(slot));
         }
     }
-    
+
+    openConnection();
+
 }
 
 NPX2Thread::~NPX2Thread()
@@ -105,6 +113,7 @@ void NPX2Thread::openConnection()
 
     np::setParameter(np::NP_PARAM_BUFFERSIZE, MAXSTREAMBUFFERSIZE);
     np::setParameter(np::NP_PARAM_BUFFERCOUNT, MAXSTREAMBUFFERCOUNT);
+
 }
 
 void NPX2Thread::closeConnection()
@@ -118,25 +127,242 @@ bool NPX2Thread::foundInputSource()
 	return basestationAvailable;
 }
 
-bool NPX2Thread::updateBuffer()
+XmlElement NPX2Thread::getInfoXml()
 {
-	return false;
+
+    XmlElement neuropix_info("NEUROPIX-PXI");
+
+    XmlElement* api_info = new XmlElement("API");
+    api_info->setAttribute("version", api.version);
+    neuropix_info.addChildElement(api_info);
+
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        XmlElement* basestation_info = new XmlElement("BASESTATION");
+        basestation_info->setAttribute("index", i + 1);
+        basestation_info->setAttribute("slot", int(basestations[i]->slot));
+        basestation_info->setAttribute("firmware_version", basestations[i]->boot_version);
+        basestation_info->setAttribute("bsc_firmware_version", basestations[i]->basestationConnectBoard->boot_version);
+        basestation_info->setAttribute("bsc_part_number", basestations[i]->basestationConnectBoard->part_number);
+        basestation_info->setAttribute("bsc_serial_number", String(basestations[i]->basestationConnectBoard->serial_number));
+
+        for (int j = 0; j < basestations[i]->getProbeCount(); j++)
+        {
+            XmlElement* probe_info = new XmlElement("PROBE");
+            probe_info->setAttribute("port", int(basestations[i]->probes[j]->port));
+            probe_info->setAttribute("dock", int(basestations[i]->probes[j]->dock));
+            probe_info->setAttribute("probe_serial_number", String(basestations[i]->probes[j]->serial_number));
+            probe_info->setAttribute("hs_serial_number", String(basestations[i]->probes[j]->headstage->serial_number));
+            probe_info->setAttribute("hs_part_number", basestations[i]->probes[j]->headstage->part_number);
+            probe_info->setAttribute("hs_version", basestations[i]->probes[j]->headstage->version);
+            probe_info->setAttribute("flex_part_number", basestations[i]->probes[j]->flex->part_number);
+            probe_info->setAttribute("flex_version", basestations[i]->probes[j]->flex->version);
+
+            basestation_info->addChildElement(probe_info);
+
+        }
+
+        neuropix_info.addChildElement(basestation_info);
+
+    }
+
+    return neuropix_info;
+
 }
 
-/** Initializes data transfer.*/
-bool NPX2Thread::startAcquisition()
+
+String NPX2Thread::getInfoString()
 {
+
+    String infoString;
+
+    infoString += "API Version: ";
+    infoString += api.version;
+    infoString += "\n";
+    infoString += "\n";
+    infoString += "\n";
+
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        infoString += "Basestation ";
+        infoString += String(i + 1);
+        infoString += "\n";
+        infoString += "  Firmware version: ";
+        infoString += basestations[i]->boot_version;
+        infoString += "\n";
+        infoString += "  BSC firmware version: ";
+        infoString += basestations[i]->basestationConnectBoard->boot_version;
+        infoString += "\n";
+        infoString += "  BSC part number: ";
+        infoString += basestations[i]->basestationConnectBoard->part_number;
+        infoString += "\n";
+        infoString += "  BSC serial number: ";
+        infoString += String(basestations[i]->basestationConnectBoard->serial_number);
+        infoString += "\n";
+        infoString += "\n";
+
+        for (int j = 0; j < basestations[i]->getProbeCount(); j++)
+        {
+            infoString += "    Port ";
+            infoString += String(basestations[i]->probes[j]->port);
+            infoString += "\n";
+            infoString += "\n";
+            infoString += "    Dock ";
+            infoString += String(basestations[i]->probes[j]->dock);
+            infoString += "\n";
+            infoString += "\n";
+            infoString += "    Probe serial number: ";
+            infoString += String(basestations[i]->probes[j]->serial_number);
+            infoString += "\n";
+            infoString += "\n";
+            infoString += "    Headstage serial number: ";
+            infoString += String(basestations[i]->probes[j]->headstage->serial_number);
+            infoString += "\n";
+            infoString += "    Headstage part number: ";
+            infoString += basestations[i]->probes[j]->headstage->part_number;
+            infoString += "\n";
+            infoString += "    Headstage version: ";
+            infoString += basestations[i]->probes[j]->headstage->version;
+            infoString += "\n";
+            infoString += "\n";
+            infoString += "    Flex part number: ";
+            infoString += basestations[i]->probes[j]->flex->part_number;
+            infoString += "\n";
+            infoString += "    Flex version: ";
+            infoString += basestations[i]->probes[j]->flex->version;
+            infoString += "\n";
+            infoString += "\n";
+            infoString += "\n";
+
+        }
+        infoString += "\n";
+        infoString += "\n";
+    }
+
+
+    return infoString;
+
+}
+
+bool NPX2Thread::updateBuffer()
+{
+	/*
+    bool shouldRecord = CoreServices::getRecordingStatus();
+
+    if (!isRecording && shouldRecord)
+    {
+        isRecording = true;
+        recordingTimer.startTimer(1000);
+    }
+    else if (isRecording && !shouldRecord)
+    {
+        isRecording = false;
+        stopRecording();
+    }
+    */
+
     return true;
 }
 
-/** Stops data transfer.*/
+bool NPX2Thread::startAcquisition()
+{
+
+    counter = 0;
+    maxCounter = 0;
+
+    last_npx_timestamp = 0;
+
+    startTimer(500 * totalProbes); // wait for signal chain to be built //?
+    return true;
+}
+
 bool NPX2Thread::stopAcquisition()
 {
-    return false;
+
+    if (isThreadRunning())
+    {
+        signalThreadShouldExit();
+    }
+
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        basestations[i]->stopAcquisition();
+    }
+
+    return true;
+}
+
+void NPX2Thread::timerCallback()
+{
+
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        basestations[i]->startAcquisition();
+    }
+
+    startThread();
+    stopTimer();
+
+
+}
+
+void NPX2Thread::startRecording()
+{
+    recordingNumber++;
+
+    File rootFolder = CoreServices::RecordNode::getRecordingPath();
+    String pathName = rootFolder.getFileName();
+    
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        if (basestations[i]->getProbeCount() > 0)
+        {
+            File savingDirectory = basestations[i]->getSavingDirectory();
+
+            if (!savingDirectory.getFullPathName().isEmpty())
+            {
+                File fullPath = savingDirectory.getChildFile(pathName);
+
+                if (!fullPath.exists())
+                {
+                    fullPath.createDirectory();
+                }
+
+                File npxFileName = fullPath.getChildFile("recording_slot" + String(basestations[i]->slot) + "_" + String(recordingNumber) + ".npx2");
+
+                np::setFileStream(basestations[i]->slot, npxFileName.getFullPathName().getCharPointer());
+                np::enableFileStream(basestations[i]->slot, true);
+
+                std::cout << "Basestation " << i << " started recording." << std::endl;
+            }
+            
+        }
+    }
+
+}
+
+void NPX2Thread::stopRecording()
+{
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        np::enableFileStream(basestations[i]->slot, false);
+    }
+
+    std::cout << "NeuropixThread stopped recording." << std::endl;
 }
 
 void NPX2Thread::setDefaultChannelNames()
 {
+    for (int bs_num = 0; bs_num < basestations.size(); bs_num++)
+    {
+        for (int i = 0; i < 384; i++)
+        {
+            ChannelCustomInfo info;
+            info.name = "CH" + String(i + 1);
+            info.gain = 0.1950000f;
+            channelInfo.set(i, info);
+        }
+    }
 }
 
 bool NPX2Thread::usesCustomNames() const
@@ -154,13 +380,17 @@ unsigned int NPX2Thread::getNumSubProcessors() const
 /** Returns the number of continuous headstage channels the data source can provide.*/
 int NPX2Thread::getNumDataOutputs(DataChannel::DataChannelTypes type, int subProcessorIdx) const
 {
-	return 1;
+    if (type == DataChannel::DataChannelTypes::HEADSTAGE_CHANNEL)
+    {
+	   return NUM_CHANNELS;
+    }
+    return 0;
 }
 
 /** Returns the number of TTL channels that each subprocessor generates*/
 int NPX2Thread::getNumTTLOutputs(int subProcessorIdx) const 
 {
-	return 8;
+	return 1;
 }
 
 /** Returns the sample rate of the data source.*/
@@ -172,7 +402,6 @@ float NPX2Thread::getSampleRate(int subProcessorIdx) const
 /** Returns the volts per bit of the data source.*/
 float NPX2Thread::getBitVolts(const DataChannel* chan) const
 {
-	//std::cout << "BIT VOLTS == 0.195" << std::endl;
 	return 0.1950000f;
 }
 
@@ -184,4 +413,15 @@ void NPX2Thread::setTriggerMode(bool trigger)
 void NPX2Thread::setAutoRestart(bool restart)
 {
 	//TODO
+}
+
+RecordingTimer::RecordingTimer(NPX2Thread* t_)
+{
+    thread = t_;
+}
+
+void RecordingTimer::timerCallback()
+{
+    thread->startRecording();
+    stopTimer();
 }
