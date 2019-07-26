@@ -52,19 +52,70 @@ NPX2Thread::NPX2Thread(SourceNode* sn) : DataThread(sn)
             basestations.add(new Basestation(slot));
         }
     }
-
-    printf("Found %d basestations...\n", basestations.size());
     
 }
 
 NPX2Thread::~NPX2Thread()
 {
+    closeConnection();
+}
+
+void NPX2Thread::openConnection()
+{
+
+    bool foundSync = false;
+
+    for (int i = 0; i < basestations.size(); i++)
+    {
+
+        basestations[i]->init();
+
+        if (basestations[i]->getProbeCount() > 0)
+        {
+            totalProbes += basestations[i]->getProbeCount();
+
+            basestationAvailable = true;
+
+            if (!foundSync)
+            {
+                //basestations[i]->setSyncAsInput();
+                selectedSlot = basestations[i]->slot;
+                selectedPort = basestations[i]->probes[0]->port;
+                selectedDock = basestations[i]->probes[0]->dock;
+                foundSync = true;
+            }
+
+            for (int probe_num = 0; probe_num < basestations[i]->getProbeCount(); probe_num++)
+            {
+                std::cout << "Creating buffer for slot: " << int(basestations[i]->slot) 
+                << ", port: " << int(basestations[i]->probes[probe_num]->port) 
+                << ", dock: " << int(basestations[i]->probes[probe_num]->dock) << std::endl;
+                sourceBuffers.add(new DataBuffer(384, 10000));  // full-band buffer
+                basestations[i]->probes[probe_num]->stream = sourceBuffers.getLast();
+
+                CoreServices::sendStatusMessage("Initializing probe " + String(probe_num + 1) + "/" + String(basestations[i]->getProbeCount()) + 
+                    " on Basestation " + String(i + 1) + "/" + String(basestations.size()));
+                
+                basestations[i]->initializeProbes();
+            }
+                
+        }
+            
+    }
+
+    np::setParameter(np::NP_PARAM_BUFFERSIZE, MAXSTREAMBUFFERSIZE);
+    np::setParameter(np::NP_PARAM_BUFFERCOUNT, MAXSTREAMBUFFERCOUNT);
+}
+
+void NPX2Thread::closeConnection()
+{
+    //TODO: Properly close all connections...
 }
 
 bool NPX2Thread::foundInputSource()
 {
     //Colors the plugin orange indicating input source is ready...
-	return false;
+	return basestationAvailable;
 }
 
 bool NPX2Thread::updateBuffer()

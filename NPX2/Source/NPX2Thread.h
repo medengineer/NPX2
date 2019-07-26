@@ -40,6 +40,9 @@ public:
         NPX2Thread(SourceNode* sn);
         ~NPX2Thread();
 
+        void openConnection();
+        void closeConnection();
+
         bool foundInputSource() override;
         bool updateBuffer();
         void updateChannels();
@@ -93,6 +96,14 @@ private:
         CriticalSection displayMutex;
 
         OwnedArray<Basestation> basestations;
+
+        bool basestationAvailable;
+
+        int totalProbes;
+
+        int selectedSlot;
+        int selectedPort;
+        int selectedDock;
 
 };
 #endif  // NEUROPIX2THREAD_H_DEFINED
