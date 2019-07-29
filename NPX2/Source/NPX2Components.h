@@ -182,8 +182,6 @@ private:
 	size_t samplesToRead = NUM_CHANNELS;
 	size_t actualRead;
 
-
-
 };
 
 class Headstage : public NeuropixComponent

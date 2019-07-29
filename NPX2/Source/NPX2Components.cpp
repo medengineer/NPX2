@@ -2,7 +2,7 @@
 ------------------------------------------------------------------
 
 This file is part of the Open Ephys GUI
-Copyright (C) 2018 Allen Institute for Brain Science and Open Ephys
+Copyright (C) 2019 Allen Institute for Brain Science and Open Ephys
 
 ------------------------------------------------------------------
 
@@ -20,6 +20,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
+
+#include <stdlib.h>
 
 #include "NPX2Components.h"
 
@@ -329,11 +331,6 @@ void Probe::run()
 
 		count++;
 
-		np::PacketInfo pckinfo[SAMPLECOUNT];
-		int16_t data[NUM_CHANNELS];
-		size_t samplesToRead = NUM_CHANNELS;
-		size_t actualRead;
-
 		errorCode = np::readPacket(
 			basestation->slot,
 			port,
@@ -344,84 +341,42 @@ void Probe::run()
 			samplesToRead,
 			&actualRead);
 
-		size_t packetsavailable;
-		size_t headroom;
-
-		errorCode = np::getPacketFifoStatus(
-			basestation->slot,
-			port,
-			dock,
-			static_cast<np::streamsource_t>(0),
-			&packetsavailable,
-			&headroom);
-
-		if (errorCode == np::SUCCESS && actualRead > 0 && count % 10000 == 0)
-		{
-			printf("[NPX2C] np::readPacket actualRead: %d packetsAvailable: %d, headroom %d, data[0] %d\n", actualRead, packetsavailable, headroom, data[0]);
-			printf("[NPX2C] np::readPacket packetInfo: %d, %d, %d,\n", pckinfo->Timestamp, pckinfo->Status, pckinfo->payloadlength); fflush(stdout);
-		}
-
-		//NP_EXPORT NP_ErrorCode NP_APIC readPacket(int slotID, int portID, int dock, streamsource_t source, struct PacketInfo* pckinfo, int16_t* data, size_t samplestoread, size_t* actualread);
-		//printf("readPacket: PacketInfo: Timestamp:%d, Status:%d, payloadlength:%d\n", pckinfo->Timestamp, pckinfo->Status, pckinfo->payloadlength);
-
-		/*
 		if (errorCode == np::SUCCESS && actualRead > 0)
 		{
 
-			printf("np::SUCCESS && actualRead > 0\n"); fflush(stdout);
+			eventCode = pckinfo->Status >> 6; //TODO: Confirm event code is same bit...
 
-			//printf("Timestamp: %d, Status: %d, Size: %d", pckinfo->Timestamp, pckinfo->Status, pckinfo->payloadlength);
-			for (int packetNum = 0; packetNum < count; packetNum++)
+			int64 npx_timestamp = pckinfo->Timestamp;
+
+			float samples[NUM_CHANNELS];
+
+			for (int i = 0; i < NUM_CHANNELS; i++)
 			{
-				for (int i = 0; i < 12; i++)
-				{
-					eventCode = packet[packetNum].Status[i] >> 6; // AUX_IO<0:13>
+				samples[i] = 100.0f * float(data[i]) / 8192; //TODO: Confirm scale factor...
+			}
 
-					uint32_t npx_timestamp = packet[packetNum].timestamp[i];
+			stream->addToBuffer(samples, &npx_timestamp, &eventCode, 1);
 
-					for (int j = 0; j < 384; j++)
-					{
-						apSamples[j] = float(packet[packetNum].apData[i][j]) * 1.2f / 1024.0f * 1000000.0f / gains[apGains[j]]; // convert to microvolts
+			size_t packetsAvailable;
+			size_t headroom;
 
-						if (i == 0)
-							lfpSamples[j] = float(packet[packetNum].lfpData[j]) * 1.2f / 1024.0f * 1000000.0f / gains[lfpGains[j]]; // convert to microvolts
-					}
+			errorCode = np::getPacketFifoStatus(
+				basestation->slot,
+				port,
+				dock,
+				static_cast<np::streamsource_t>(0),
+				&packetsAvailable,
+				&headroom);
 
-					ap_timestamp += 1;
+			fifoFillPercentage = float(packetsAvailable) / float(packetsAvailable + headroom);
 
-					apBuffer->addToBuffer(apSamples, &ap_timestamp, &eventCode, 1);
-
-					if (ap_timestamp % 30000 == 0)
-					{
-						size_t packetsAvailable;
-						size_t headroom;
-
-						np2::getElectrodeDataFifoState(
-							basestation->slot,
-							port,
-							dock,
-							&packetsAvailable,
-							&headroom);
-
-						//std::cout << "Basestation " << int(basestation->slot) << ", probe " << int(port) << ", packets: " << packetsAvailable << std::endl;
-
-						fifoFillPercentage = float(packetsAvailable) / float(packetsAvailable + headroom);
-					}
-
-
-				}
-				lfp_timestamp += 1;
-
-				lfpBuffer->addToBuffer(lfpSamples, &lfp_timestamp, &eventCode, 1);
-
+			if (count % 10000 == 0)
+			{
+				printf("Convert: %d -> %1.2f\n", data[0], samples[0]);
 			}
 
 		}
-		else if (errorCode != np::SUCCESS)
-		{
-			//std::cout << "Error code: " << errorCode << "for Basestation " << int(basestation->slot) << ", probe " << int(port) << std::endl;
-		}
-		*/
+
 	}
 
 }
