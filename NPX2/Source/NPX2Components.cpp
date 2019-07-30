@@ -547,8 +547,6 @@ void Basestation::initializeProbes()
 		for (int i = 0; i < probes.size(); i++)
 		{
 			errorCode = np::setOPMODE(slot, probes[i]->port, probes[i]->dock, np::probe_opmode_t::RECORDING);
-			bool ledEnable = false;
-			errorCode = np::setHSLed(slot, probes[i]->port, ledEnable);
 
 			//TODO: Confirm 2.0 probes DO NOT require calibration.
 			//probes[i]->calibrate();
@@ -563,6 +561,9 @@ void Basestation::initializeProbes()
 			else {
 				std::cout << "     Failed with error code " << errorCode << std::endl;
 			}
+
+			bool ledEnable = false;
+			errorCode = np::setHSLed(slot, probes[i]->port, ledEnable);
 
 		}
 

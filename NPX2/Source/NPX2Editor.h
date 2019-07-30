@@ -30,6 +30,44 @@
 class UtilityButton;
 class SourceNode;
 class NPX2Editor;
+class EditorBackground;
+class BackgroundLoader;
+class FifoMonitor;
+class ProbeButton;
+
+class NPX2Editor : public GenericEditor, public ComboBox::Listener
+{
+public:
+	NPX2Editor(GenericProcessor* parentNode, NPX2Thread* thread, bool useDefaultParameterEditors);
+	virtual ~NPX2Editor();
+
+    void comboBoxChanged(ComboBox*);
+    void buttonEvent(Button* button);
+
+    void saveEditorParameters(XmlElement*);
+    void loadEditorParameters(XmlElement*);
+
+    OwnedArray<ProbeButton> probeButtons;
+
+private:
+
+	NPX2Thread* thread;
+
+    OwnedArray<UtilityButton> directoryButtons;
+    OwnedArray<FifoMonitor> fifoMonitors; 
+
+    ScopedPointer<ComboBox> masterSelectBox;
+    ScopedPointer<ComboBox> masterConfigBox;
+    ScopedPointer<ComboBox> freqSelectBox;
+
+    Array<File> savingDirectories;
+
+    ScopedPointer<BackgroundLoader> uiLoader;
+    ScopedPointer<EditorBackground> background;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NPX2Editor);
+
+};
 
 class EditorBackground : public Component
 {
@@ -65,6 +103,7 @@ public:
     void setSelectedState(bool);
 
     void setProbeStatus(int status);
+    int getProbeStatus();
     void timerCallback();
 
     int slot;
@@ -99,42 +138,6 @@ private:
     float fillPercentage;
     NPX2Thread* thread;
     int id;
-};
-
-
-
-class NPX2Editor : public GenericEditor, public ComboBox::Listener
-{
-public:
-	NPX2Editor(GenericProcessor* parentNode, NPX2Thread* thread, bool useDefaultParameterEditors);
-	virtual ~NPX2Editor();
-
-    void comboBoxChanged(ComboBox*);
-    void buttonEvent(Button* button);
-
-    void saveEditorParameters(XmlElement*);
-    void loadEditorParameters(XmlElement*);
-
-    OwnedArray<ProbeButton> probeButtons;
-
-private:
-
-	NPX2Thread* thread;
-
-    OwnedArray<UtilityButton> directoryButtons;
-    OwnedArray<FifoMonitor> fifoMonitors; 
-
-    ScopedPointer<ComboBox> masterSelectBox;
-    ScopedPointer<ComboBox> masterConfigBox;
-    ScopedPointer<ComboBox> freqSelectBox;
-
-    Array<File> savingDirectories;
-
-    ScopedPointer<BackgroundLoader> uiLoader;
-    ScopedPointer<EditorBackground> background;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NPX2Editor);
-
 };
 
 #endif  // __NPX2EDITOR_H__
