@@ -27,15 +27,111 @@
 #include <ProcessorHeaders.h>
 #include <EditorHeaders.h>
 
-class NPX2Editor : public GenericEditor
+class UtilityButton;
+class SourceNode;
+class NPX2Editor;
+
+class EditorBackground : public Component
+{
+public:
+    EditorBackground(int numBasestations, bool freqSelectEnabled);
+    void setFreqSelectAvailable(bool available);
+
+private:
+    void paint(Graphics& g);
+
+    int numBasestations;
+    bool freqSelectEnabled;
+
+};
+
+class BackgroundLoader : public Thread
+{
+public:
+    BackgroundLoader(NPX2Thread* t, NPX2Editor* e);
+    ~BackgroundLoader();
+    void run();
+private:
+    NPX2Thread* np;
+    NPX2Editor* ed;
+};
+
+class ProbeButton : public ToggleButton, public Timer
+{
+public:
+    ProbeButton(int id, NPX2Thread* thread);
+
+    void setSlotAndPortAndDock(int, int, int);
+    void setSelectedState(bool);
+
+    void setProbeStatus(int status);
+    void timerCallback();
+
+    int slot;
+    int port;
+    int dock;
+    bool connected;
+    NPX2Thread* thread;
+
+private:
+    void paintButton(Graphics& g, bool isMouseOver, bool isButtonDown);
+
+    int id;
+    int status;
+    bool selected;
+};
+
+class FifoMonitor : public Component, public Timer
+{
+public:
+    FifoMonitor(int id, NPX2Thread* thread);
+
+    void setSlot(int);
+
+    void setFillPercentage(float);
+
+    void timerCallback();
+
+    int slot;
+private:
+    void paint(Graphics& g);
+
+    float fillPercentage;
+    NPX2Thread* thread;
+    int id;
+};
+
+
+
+class NPX2Editor : public GenericEditor, public ComboBox::Listener
 {
 public:
 	NPX2Editor(GenericProcessor* parentNode, NPX2Thread* thread, bool useDefaultParameterEditors);
 	virtual ~NPX2Editor();
 
+    void comboBoxChanged(ComboBox*);
+    void buttonEvent(Button* button);
+
+    void saveEditorParameters(XmlElement*);
+    void loadEditorParameters(XmlElement*);
+
+    OwnedArray<ProbeButton> probeButtons;
+
 private:
 
 	NPX2Thread* thread;
+
+    OwnedArray<UtilityButton> directoryButtons;
+    OwnedArray<FifoMonitor> fifoMonitors; 
+
+    ScopedPointer<ComboBox> masterSelectBox;
+    ScopedPointer<ComboBox> masterConfigBox;
+    ScopedPointer<ComboBox> freqSelectBox;
+
+    Array<File> savingDirectories;
+
+    ScopedPointer<BackgroundLoader> uiLoader;
+    ScopedPointer<EditorBackground> background;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NPX2Editor);
 

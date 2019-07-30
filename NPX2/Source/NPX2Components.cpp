@@ -172,14 +172,14 @@ Probe::Probe(Basestation* bs, int port, int dock) : Thread("probe_" + String(por
 
 }
 
-void Probe::setStatus(int status_)
+void Probe::setStatus(int status)
 {
-	status = status_;
+	this->status = status;
 }
 
-void Probe::setSelected(bool isSelected_)
+void Probe::setSelected(bool isSelected)
 {
-	isSelected = isSelected_;
+	this->isSelected = isSelected;
 }
 
 void Probe::calibrate()
@@ -423,6 +423,7 @@ Basestation::Basestation(int slot_number) : probesInitialized(false)
 				if (errorCode == np::SUCCESS)
 				{
 					probes.add(new Probe(this, port, dock));
+					printf("***Added new probe: port: %d, dock: %d\n", port, dock);
 					probes[probes.size() - 1]->setStatus(2); 
 				}
 			}
@@ -466,20 +467,16 @@ Basestation::~Basestation()
 void Basestation::setSyncAsInput()
 {
 
-	//TODO: Can't find the corresponding calls in NPX2 API
-
-    /*
-	np1_error = np::setParameter(np::NP_PARAM_SYNCMASTER, slot);
-	if (np1_error != np::SUCCESS)
+	errorCode = np::setParameter(np::NP_PARAM_SYNCMASTER, slot);
+	if (errorCode != np::SUCCESS)
 	{
 		printf("Failed to set slot %d as sync master!\n");
 		return;
 	}
 
-	np1_error = np::setParameter(np::NP_PARAM_SYNCSOURCE, np::TRIGIN_SMA);
-	if (np1_error != np::SUCCESS)
+	errorCode = np::setParameter(np::NP_PARAM_SYNCSOURCE, np::SIGNALLINE_SMA);
+	if (errorCode != np::SUCCESS)
 		printf("Failed to set slot %d SMA as sync source!\n");
-	*/
 
 }
 

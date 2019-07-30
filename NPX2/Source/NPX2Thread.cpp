@@ -59,13 +59,44 @@ NPX2Thread::NPX2Thread(SourceNode* sn) : DataThread(sn), recordingTimer(this)
         }
     }
 
-    openConnection();
+    //openConnection();
 
 }
 
 NPX2Thread::~NPX2Thread()
 {
     closeConnection();
+}
+
+int NPX2Thread::getNumBasestations()
+{
+    return basestations.size();
+}
+
+int NPX2Thread::getSlotNumberFor(int slotIndex)
+{
+    return basestations[slotIndex]->slot;
+}
+
+void NPX2Thread::setMasterSync(int slotIndex)
+{
+    basestations[slotIndex]->setSyncAsInput();
+}
+
+void NPX2Thread::setSyncOutput(int slotIndex)
+{
+    basestations[slotIndex]->setSyncAsOutput(0);
+}
+
+Array<int> NPX2Thread::getSyncFrequencies()
+{
+    return basestations[0]->getSyncFrequencies();
+}
+
+
+void NPX2Thread::setSyncFrequency(int slotIndex, int freqIndex)
+{
+    basestations[slotIndex]->setSyncAsOutput(freqIndex);
 }
 
 void NPX2Thread::openConnection()
@@ -86,7 +117,7 @@ void NPX2Thread::openConnection()
 
             if (!foundSync)
             {
-                //basestations[i]->setSyncAsInput();
+                basestations[i]->setSyncAsInput();
                 selectedSlot = basestations[i]->slot;
                 selectedPort = basestations[i]->probes[0]->port;
                 selectedDock = basestations[i]->probes[0]->dock;
@@ -121,10 +152,48 @@ void NPX2Thread::closeConnection()
     //TODO: Properly close all connections...
 }
 
+void NPX2Thread::updateProbeSettingsQueue()
+{
+    probeSettingsUpdateQueue.add(this->p_settings);
+}
+
+void NPX2Thread::applyProbeSettingsQueue()
+{
+    for (auto settings : probeSettingsUpdateQueue)
+    {
+        /*
+        selectElectrodes(settings.slot, settings.port, settings.channelStatus);
+        setAllGains(settings.slot, settings.port, settings.apGainIndex, settings.lfpGainIndex);
+        setAllReferences(settings.slot, settings.port, settings.refChannelIndex);
+        setFilter(settings.slot, settings.port, settings.disableHighPass);
+        */
+    }
+}
+
 bool NPX2Thread::foundInputSource()
 {
-    //Colors the plugin orange indicating input source is ready...
 	return basestationAvailable;
+}
+
+void NPX2Thread::setDirectoryForSlot(int slotIndex, File directory)
+{
+    std::cout << "Thread setting directory for slot " << slotIndex << " to " << directory.getFileName() << std::endl;
+
+    if (slotIndex < basestations.size())
+    {
+        basestations[slotIndex]->setSavingDirectory(directory);
+    }
+}
+
+File NPX2Thread::getDirectoryForSlot(int slotIndex)
+{
+    if (slotIndex < basestations.size())
+    {
+        return basestations[slotIndex]->getSavingDirectory();
+    }
+    else {
+        return File::getCurrentWorkingDirectory();
+    }
 }
 
 XmlElement NPX2Thread::getInfoXml()
@@ -306,6 +375,21 @@ void NPX2Thread::timerCallback()
 
 }
 
+float NPX2Thread::getFillPercentage(int slot)
+{
+
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        if (basestations[i]->slot == slot)
+        {
+            return basestations[i]->getFillPercentage();
+        }
+            
+    }
+
+    return 0.0f;
+}
+
 void NPX2Thread::startRecording()
 {
     recordingNumber++;
@@ -424,4 +508,88 @@ void RecordingTimer::timerCallback()
 {
     thread->startRecording();
     stopTimer();
+}
+
+int NPX2Thread::getProbeStatus(int slot, int port, int dock)
+{
+    printf("Called get probe status: slot: %d, port: %d, dock: %d\n", slot, port, dock);
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        if (basestations[i]->slot == slot)
+        {
+            for (int probe_num = 0; probe_num < basestations[i]->getProbeCount(); probe_num++)
+            {
+                if (basestations[i]->probes[probe_num]->port == port && basestations[i]->probes[probe_num]->dock == dock)
+                {
+                    return basestations[i]->probes[probe_num]->status;
+                }
+            }
+        }
+
+    }
+    return 0;
+}
+
+bool NPX2Thread::isSelectedProbe(int slot, int port, int dock)
+{
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        if (basestations[i]->slot == slot)
+        {
+            for (int probe_num = 0; probe_num < basestations[i]->getProbeCount(); probe_num++)
+            {
+                if (basestations[i]->probes[probe_num]->port == port && basestations[i]->probes[probe_num]->dock == dock)
+                {
+                    return basestations[i]->probes[probe_num]->isSelected;
+                }
+            }
+        }
+
+    }
+    return false;
+}
+
+void NPX2Thread::setSelectedProbe(int slot, int port, int dock)
+{
+    int currentSlot, currentPort, currentDock;
+    int newSlot, newPort, newDock;
+
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        if (basestations[i]->slot == slot)
+        {
+            for (int probe_num = 0; probe_num < basestations[i]->getProbeCount(); probe_num++)
+            {
+                if (basestations[i]->probes[probe_num]->port == port && basestations[i]->probes[probe_num]->dock == dock)
+                {
+                    newSlot = i;
+                    newPort = probe_num;
+                    basestations[i]->probes[probe_num]->setSelected(true);
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        if (basestations[i]->slot == selectedSlot)
+        {
+            for (int probe_num = 0; probe_num < basestations[i]->getProbeCount(); probe_num++)
+            {
+                if (basestations[i]->probes[probe_num]->port == selectedPort && basestations[i]->probes[probe_num]->dock == selectedDock)
+                {
+                    currentSlot = i;
+                    currentPort = probe_num;
+                    basestations[i]->probes[probe_num]->setSelected(false);
+                }
+            }
+        }
+    }
+
+    //basestations[newSlot]->probes[newPort]->ap_timestamp = basestations[currentSlot]->probes[currentPort]->ap_timestamp;
+    //basestations[newSlot]->probes[newPort]->lfp_timestamp = basestations[currentSlot]->probes[currentPort]->lfp_timestamp;
+
+    selectedSlot = slot;
+    selectedPort = port;
+    selectedDock = dock;
 }

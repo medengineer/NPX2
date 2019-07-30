@@ -59,16 +59,31 @@ public:
         void openConnection();
         void closeConnection();
 
+        int getNumBasestations();
+        int getSlotNumberFor(int slotIndex);
+
         bool foundInputSource() override;
         bool updateBuffer();
         void updateChannels();
 
+        void setMasterSync(int slotIndex);
+        void setSyncOutput(int slotIndex);
+
+        Array<int> getSyncFrequencies();
+        void setSyncFrequency(int slotIndex, int freqIndex);
+
         bool startAcquisition() override;
         bool stopAcquisition() override;
+
+        float getFillPercentage(int slot);
 
         void timerCallback();
         void startRecording();
         void stopRecording();
+
+        int getProbeStatus(int slot, int port, int dock);
+        void setSelectedProbe(int slot, int port, int dock);
+        bool isSelectedProbe(int slot, int port, int dock);
 
         // DataThread Methods
 
@@ -107,6 +122,24 @@ public:
         static DataThread* createDataThread(SourceNode* sn);
 
         GenericEditor* createEditor(SourceNode* sn);
+
+        /* Loading settings */ 
+        struct probeSettings {
+            unsigned char slot;
+            signed char port;
+            Array<int> channelStatus;
+            int apGainIndex;
+            int lfpGainIndex;
+            int refChannelIndex;
+            bool disableHighPass;
+        } p_settings;
+        Array<probeSettings> probeSettingsUpdateQueue;
+
+        void updateProbeSettingsQueue();
+        void applyProbeSettingsQueue();
+
+        void setDirectoryForSlot(int slotIndex, File directory);
+        File getDirectoryForSlot(int slotIndex);
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NPX2Thread);
 private:
