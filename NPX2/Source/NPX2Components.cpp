@@ -22,6 +22,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <stdlib.h>
+#include <chrono>
+#include <thread>
 
 #include "NPX2Components.h"
 
@@ -615,6 +617,89 @@ void Basestation::setChannels(int slot, int port, int dock, Array<int> channelMa
 		}
 	}
 	*/
+}
+
+bool Basestation::runBist(int slot, int port, int dock, int bistIndex)
+{
+
+	bool returnValue;
+
+	if (slot == this->slot)
+	{
+		for (int i = 0; i < probes.size(); i++)
+		{
+			if (probes[i]->port == port && probes[i]->dock == dock)
+			{
+				switch (bistIndex)
+			    {
+			    case BIST_SIGNAL:
+			    {
+			        //np::NP_ErrorCode errorCode = bistSignal(slot, port, &returnValue, probes[i]->stats);
+			        CoreServices::sendStatusMessage("Test not valid for Neuropixels 2.0 probes. ");
+			        break;
+			    }
+			    case BIST_NOISE:
+			    {
+			        if (np::bistNoise(slot, port, dock) == np::SUCCESS)
+			            returnValue = true;
+			        break;
+			    }
+			    case BIST_PSB:
+			    {
+			        if (np::bistPSB(slot, port, dock) == np::SUCCESS)
+			            returnValue = true;
+			        break;
+			    }
+			    case BIST_SR:
+			    {
+			        if (np::bistSR(slot, port, dock) == np::SUCCESS)
+			            returnValue = true;
+			        break;
+			    }
+			    case BIST_EEPROM:
+			    {
+			        if (np::bistEEPROM(slot, port) == np::SUCCESS)
+			            returnValue = true;
+			        break;
+			    }
+			    case BIST_I2C:
+			    {
+			        if (np::bistI2CMM(slot, port, dock) == np::SUCCESS)
+			            returnValue = true;
+			        break;
+			    }
+			    case BIST_SERDES:
+			    {
+			        int errors;
+			        np::bistStartPRBS(slot, port);
+			        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+			        np::bistStopPRBS(slot, port, &errors);
+
+			        if (errors == 0)
+			            returnValue = true;
+			        break;
+			    }
+			    case BIST_HB:
+			    {
+			        if (np::bistHB(slot, port, dock) == np::SUCCESS)
+			            returnValue = true;
+			        break;
+			    } 
+			    case BIST_BS:
+			    {
+			        if (np::bistBS(slot) == np::SUCCESS)
+			            returnValue = true;
+			        break;
+			    } 
+			    default :
+			        CoreServices::sendStatusMessage("Test not found.");
+			    };
+			}
+		}
+	}
+
+	return returnValue;
+
 }
 
 void Basestation::setApFilterState(int slot, int port, int dock, bool disableHighPass)

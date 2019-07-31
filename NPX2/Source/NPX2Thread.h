@@ -77,6 +77,7 @@ public:
 
         float getFillPercentage(int slot);
 
+        void setRecordMode(bool recordToNpx);
         void timerCallback();
         void startRecording();
         void stopRecording();
@@ -84,6 +85,11 @@ public:
         int getProbeStatus(int slot, int port, int dock);
         void setSelectedProbe(int slot, int port, int dock);
         bool isSelectedProbe(int slot, int port, int dock);
+
+        /** Selects which electrode is connected to each channel. */
+        void selectElectrodes(int slot, int port, int dock, Array<int> channelStatus);
+
+        bool runBist(int slot, int port, int dock, int bistIndex);
 
         // DataThread Methods
 
@@ -158,6 +164,8 @@ private:
         int selectedDock;
 
         //Acquisition-related
+        bool autoRestart;
+        bool internalTrigger;
         int counter; //?
         int maxCounter; //?
         int last_npx_timestamp; //?
@@ -166,6 +174,7 @@ private:
         int recordingNumber;
         RecordingTimer recordingTimer;
         bool isRecording;
+        bool recordToNpx;
 
         CriticalSection displayMutex;
 

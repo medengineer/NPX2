@@ -38,6 +38,8 @@ GenericEditor* NPX2Thread::createEditor(SourceNode* sn)
 
 NPX2Thread::NPX2Thread(SourceNode* sn) : DataThread(sn), recordingTimer(this)
 {
+    
+    api.getInfo();
 
     basestationAvailable = false;
     probesInitialized = false;
@@ -58,8 +60,6 @@ NPX2Thread::NPX2Thread(SourceNode* sn) : DataThread(sn), recordingTimer(this)
             basestations.add(new Basestation(slot));
         }
     }
-
-    //openConnection();
 
 }
 
@@ -312,6 +312,27 @@ String NPX2Thread::getInfoString()
     return infoString;
 
 }
+void NPX2Thread::selectElectrodes(int slot, int port, int dock, Array<int> channelStatus)
+{
+
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        basestations[i]->setChannels(slot, port, dock, channelStatus);
+    }
+
+}
+
+bool NPX2Thread::runBist(int slot, int port, int dock, int bistIndex)
+{
+    bool returnValue = false;
+
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        returnValue = basestations[i]->runBist(slot, port, dock, bistIndex);
+    }
+
+    return returnValue;
+}
 
 bool NPX2Thread::updateBuffer()
 {
@@ -458,7 +479,7 @@ bool NPX2Thread::usesCustomNames() const
 /** Returns the number of virtual subprocessors this source can generate */
 unsigned int NPX2Thread::getNumSubProcessors() const
 {
-	return 1;
+	return totalProbes > 0 ? totalProbes : 1;
 }
 
 /** Returns the number of continuous headstage channels the data source can provide.*/
@@ -489,30 +510,26 @@ float NPX2Thread::getBitVolts(const DataChannel* chan) const
 	return 0.1950000f;
 }
 
-void NPX2Thread::setTriggerMode(bool trigger)
+void NPX2Thread::setTriggerMode(bool useInternalTrigger)
 {
-    //TODO
+    //ConfigAccessErrorCode caec = neuropix.neuropix_triggerMode(trigger);
+    
+    this->internalTrigger = useInternalTrigger;
 }
 
-void NPX2Thread::setAutoRestart(bool restart)
+void NPX2Thread::setRecordMode(bool recordToNpx)
 {
-	//TODO
+    this->recordToNpx = recordToNpx;
 }
 
-RecordingTimer::RecordingTimer(NPX2Thread* t_)
+void NPX2Thread::setAutoRestart(bool autoRestart)
 {
-    thread = t_;
+    this->autoRestart = autoRestart;
 }
 
-void RecordingTimer::timerCallback()
-{
-    thread->startRecording();
-    stopTimer();
-}
 
 int NPX2Thread::getProbeStatus(int slot, int port, int dock)
 {
-    printf("Called get probe status: slot: %d, port: %d, dock: %d\n", slot, port, dock);
     for (int i = 0; i < basestations.size(); i++)
     {
         if (basestations[i]->slot == slot)
@@ -592,4 +609,15 @@ void NPX2Thread::setSelectedProbe(int slot, int port, int dock)
     selectedSlot = slot;
     selectedPort = port;
     selectedDock = dock;
+}
+
+RecordingTimer::RecordingTimer(NPX2Thread* t_)
+{
+    thread = t_;
+}
+
+void RecordingTimer::timerCallback()
+{
+    thread->startRecording();
+    stopTimer();
 }

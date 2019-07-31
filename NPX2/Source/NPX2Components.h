@@ -61,6 +61,20 @@ public:
 	void getInfo();
 };
 
+enum BISTS {
+
+    BIST_SIGNAL = 1,
+    BIST_NOISE  = 2,
+    BIST_PSB    = 3,
+    BIST_SR     = 4,
+    BIST_EEPROM = 5,
+    BIST_I2C    = 6,
+    BIST_SERDES = 7,
+    BIST_HB     = 8,
+    BIST_BS     = 9
+    
+};
+
 class Basestation : public NeuropixComponent
 {
 public:
@@ -81,6 +95,7 @@ public:
 	int getProbeCount();
 	void initializeProbes();
 
+	bool runBist(int slot, int port, int dock, int bistIndex);
 	void setChannels(int slot, int port, int dock, Array<int> channelStatus);
 	void setReferences(int slot, int port, int dock, np::channelreference_t refId, np::electrodebanks_t bank);
 	void setGains(int slot, int port, int dock, unsigned char apGain, unsigned char lfpGain);
