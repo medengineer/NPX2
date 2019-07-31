@@ -655,8 +655,6 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     {
         channelStatus.add(-1);
         channelReference.add(0);
-        channelLfpGain.add(0);
-        channelApGain.add(0);
         channelSelectionState.add(0);
         channelOutput.add(1);
         channelColours.add(Colour(20,20,20));
@@ -671,35 +669,34 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     zoomOffset = 0;
     dragZoneWidth = 10;
 
-    apGainComboBox = new ComboBox("apGainComboBox");
-    apGainComboBox->setBounds(400, 150, 65, 22);
-    apGainComboBox->addListener(this);
+    /* ENABLE SELECTED CHANNELS */
+    enableButton = new UtilityButton("ENABLE", Font("Small Text", 13, Font::plain));
+    enableButton->setRadius(3.0f);
+    enableButton->setBounds(400,95,65,22);
+    enableButton->addListener(this);
+    enableButton->setTooltip("Enable selected channel(s)");
 
-    lfpGainComboBox = new ComboBox("lfpGainComboBox");
-    lfpGainComboBox->setBounds(400, 200, 65, 22);
-    lfpGainComboBox->addListener(this);
+    addAndMakeVisible(enableButton);
 
-    Array<int> gains;
-    gains.add(50);
-    gains.add(125);
-    gains.add(250);
-    gains.add(500);
-    gains.add(1000);
-    gains.add(1500);
-    gains.add(2000);
-    gains.add(3000);
+    enableViewButton = new UtilityButton("VIEW", Font("Small Text", 12, Font::plain));
+    enableViewButton->setRadius(3.0f);
+    enableViewButton->setBounds(480,97,45,18);
+    enableViewButton->addListener(this);
+    enableViewButton->setTooltip("View channel enabled state");
 
-    for (int i = 0; i < 8; i++)
-    {
-        lfpGainComboBox->addItem(String(gains[i]) + String("x"), i + 1);
-        apGainComboBox->addItem(String(gains[i]) + String("x"), i + 1);
-    }
+    addAndMakeVisible(enableViewButton);
 
-    lfpGainComboBox->setSelectedId(3, dontSendNotification);
-    apGainComboBox->setSelectedId(4, dontSendNotification);
+    /* REFERENCE SELECTION */
+
+    referenceLabel = new Label("REFERENCE", "REFERENCE");
+    referenceLabel->setFont(Font("Small Text", 13, Font::plain));
+    referenceLabel->setBounds(396,130,100,20);
+    referenceLabel->setColour(Label::textColourId, Colours::grey);
+
+    addAndMakeVisible(referenceLabel);
 
     referenceComboBox = new ComboBox("ReferenceComboBox");
-    referenceComboBox->setBounds(400, 250, 65, 22);
+    referenceComboBox->setBounds(400, 150, 65, 22);
     referenceComboBox->addListener(this);
     referenceComboBox->addItem("Ext", 1);
     referenceComboBox->addItem("Tip", 2);
@@ -709,12 +706,52 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     referenceComboBox->addItem("1251", 6); //follows 0-indexed electrode numbering
     referenceComboBox->setSelectedId(1, dontSendNotification);
 
-    filterComboBox = new ComboBox("FilterComboBox");
-    filterComboBox->setBounds(400, 300, 75, 22);
-    filterComboBox->addListener(this);
-    filterComboBox->addItem("ON", 1);
-    filterComboBox->addItem("OFF", 2);
-    filterComboBox->setSelectedId(1, dontSendNotification);
+    addAndMakeVisible(referenceComboBox);
+
+    referenceViewButton = new UtilityButton("VIEW", Font("Small Text", 12, Font::plain));
+    referenceViewButton->setRadius(3.0f);
+    referenceViewButton->setBounds(480, 150, 45, 18);
+    referenceViewButton->addListener(this);
+    referenceViewButton->setTooltip("View reference of each channel");
+
+    addAndMakeVisible(referenceViewButton);
+
+    /* ANNOTATION */
+    annotationLabel = new Label("ANNOTATION_LABEL", "ANNOTATION");
+    annotationLabel->setFont(Font("Small Text", 13, Font::plain));
+    annotationLabel->setBounds(396,185,200,20);
+    annotationLabel->setColour(Label::textColourId, Colours::grey);
+    addAndMakeVisible(annotationLabel);
+
+    annotationEditor = new Label("ANNOTATION", "Custom annotation");
+    annotationEditor->setBounds(396,205,200,20);
+    annotationEditor->setColour(Label::textColourId, Colours::white);
+    annotationEditor->setEditable(true);
+    annotationEditor->addListener(this);
+    addAndMakeVisible(annotationEditor);
+
+    annotationButton = new UtilityButton("ADD", Font("Small Text", 12, Font::plain));
+    annotationButton->setRadius(3.0f);
+    annotationButton->setBounds(400,265,40,18);
+    annotationButton->addListener(this);
+    annotationButton->setTooltip("Add annotation to selected channels");
+
+    addAndMakeVisible(annotationButton);
+
+    colorSelector = new ColorSelector(this);
+    colorSelector->setBounds(400, 235, 250, 20);
+
+    addAndMakeVisible(colorSelector);
+
+    /* BUILT IN SELF TESTS */
+    /* TODO: BIST may not yet be implemeneted for 2.0 probes, disable for now...
+
+    bistLabel = new Label("TESTS", "Available tests:");
+    bistLabel->setFont(Font("Small Text", 13, Font::plain));
+    bistLabel->setBounds(550, 473, 200, 20);
+    bistLabel->setColour(Label::textColourId, Colours::grey);
+
+    addAndMakeVisible(bistLabel);
 
     bistComboBox = new ComboBox("BistComboBox");
     bistComboBox->setBounds(550, 500, 225, 22);
@@ -729,13 +766,19 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     bistComboBox->addItem("Test Heartbeat", BIST_HB);
     bistComboBox->addItem("Test Basestation", BIST_BS);
 
-    filterComboBox->setSelectedId(1, dontSendNotification);
+    addAndMakeVisible(bistComboBox);
 
-    enableButton = new UtilityButton("ENABLE", Font("Small Text", 13, Font::plain));
-    enableButton->setRadius(3.0f);
-    enableButton->setBounds(400,95,65,22);
-    enableButton->addListener(this);
-    enableButton->setTooltip("Enable selected channel(s)");
+    bistButton = new UtilityButton("RUN", Font("Small Text", 12, Font::plain));
+    bistButton->setRadius(3.0f);
+    bistButton->setBounds(780, 500, 50, 22);
+    bistButton->addListener(this);
+    bistButton->setTooltip("Run selected test");
+
+    addAndMakeVisible(bistButton);
+
+    */
+
+    /*TODO: Functionality not yet defined/implemented
 
     selectAllButton = new UtilityButton("SELECT ALL", Font("Small Text", 13, Font::plain));
     selectAllButton->setRadius(3.0f);
@@ -755,64 +798,25 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     outputOffButton->addListener(this);
     outputOffButton->setTooltip("Turn output off for selected channels");
 
-    enableViewButton = new UtilityButton("VIEW", Font("Small Text", 12, Font::plain));
-    enableViewButton->setRadius(3.0f);
-    enableViewButton->setBounds(480,97,45,18);
-    enableViewButton->addListener(this);
-    enableViewButton->setTooltip("View channel enabled state");
+    outputLabel = new Label("OUTPUT", "OUTPUT");
+    outputLabel->setFont(Font("Small Text", 13, Font::plain));
+    outputLabel->setBounds(396,330,200,20);
+    outputLabel->setColour(Label::textColourId, Colours::grey);
+    
+    addAndMakeVisible(outputLabel);
+    */
 
-    lfpGainViewButton = new UtilityButton("VIEW", Font("Small Text", 12, Font::plain));
-    lfpGainViewButton->setRadius(3.0f);
-    lfpGainViewButton->setBounds(480,202,45,18);
-    lfpGainViewButton->addListener(this);
-    lfpGainViewButton->setTooltip("View LFP gain of each channel");
-
-    apGainViewButton = new UtilityButton("VIEW", Font("Small Text", 12, Font::plain));
-    apGainViewButton->setRadius(3.0f);
-    apGainViewButton->setBounds(480,152,45,18);
-    apGainViewButton->addListener(this);
-    apGainViewButton->setTooltip("View AP gain of each channel");
-
-    referenceViewButton = new UtilityButton("VIEW", Font("Small Text", 12, Font::plain));
-    referenceViewButton->setRadius(3.0f);
-    referenceViewButton->setBounds(480,252,45,18);
-    referenceViewButton->addListener(this);
-    referenceViewButton->setTooltip("View reference of each channel");
-
-    annotationButton = new UtilityButton("ADD", Font("Small Text", 12, Font::plain));
-    annotationButton->setRadius(3.0f);
-    annotationButton->setBounds(400,480,40,18);
-    annotationButton->addListener(this);
-    annotationButton->setTooltip("Add annotation to selected channels");
-
-    bistButton = new UtilityButton("RUN", Font("Small Text", 12, Font::plain));
-    bistButton->setRadius(3.0f);
-    bistButton->setBounds(780, 500, 50, 22);
-    bistButton->addListener(this);
-    bistButton->setTooltip("Run selected test");
-
-    addAndMakeVisible(lfpGainComboBox);
-    addAndMakeVisible(apGainComboBox);
-    addAndMakeVisible(referenceComboBox);
-    addAndMakeVisible(filterComboBox);
-    addAndMakeVisible(bistComboBox);
-
-    addAndMakeVisible(enableButton);
-    addAndMakeVisible(enableViewButton);
-    addAndMakeVisible(lfpGainViewButton);
-    addAndMakeVisible(apGainViewButton);
-    addAndMakeVisible(referenceViewButton);
-    addAndMakeVisible(annotationButton);
-    addAndMakeVisible(bistButton);
-
+    /* DEVICE INFO */
     mainLabel = new Label("MAIN", "MAIN");
     mainLabel->setFont(Font("Small Text", 60, Font::plain));
     mainLabel->setBounds(550, 20, 200, 65);
     mainLabel->setColour(Label::textColourId, Colours::darkkhaki);
+
     addAndMakeVisible(mainLabel);
 
     infoLabelView = new Viewport("INFO");
-    infoLabelView->setBounds(550, 50, 750, 350);
+    infoLabelView->setBounds(550, 70, 750, 350);
+
     addAndMakeVisible(infoLabelView);
     
     infoLabel = new Label("INFO", "INFO");
@@ -822,54 +826,7 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     infoLabel->setColour(Label::textColourId, Colours::grey);
     //addAndMakeVisible(infoLabel);
 
-    lfpGainLabel = new Label("LFP GAIN","LFP GAIN");
-    lfpGainLabel->setFont(Font("Small Text", 13, Font::plain));
-    lfpGainLabel->setBounds(396,180,100,20);
-    lfpGainLabel->setColour(Label::textColourId, Colours::grey);
-    addAndMakeVisible(lfpGainLabel);
-
-    apGainLabel = new Label("AP GAIN","AP GAIN");
-    apGainLabel->setFont(Font("Small Text", 13, Font::plain));
-    apGainLabel->setBounds(396,130,100,20);
-    apGainLabel->setColour(Label::textColourId, Colours::grey);
-    addAndMakeVisible(apGainLabel);
-
-    referenceLabel = new Label("REFERENCE", "REFERENCE");
-    referenceLabel->setFont(Font("Small Text", 13, Font::plain));
-    referenceLabel->setBounds(396,230,100,20);
-    referenceLabel->setColour(Label::textColourId, Colours::grey);
-    addAndMakeVisible(referenceLabel);
-
-    filterLabel = new Label("FILTER", "AP FILTER CUT");
-    filterLabel->setFont(Font("Small Text", 13, Font::plain));
-    filterLabel->setBounds(396,280,200,20);
-    filterLabel->setColour(Label::textColourId, Colours::grey);
-    addAndMakeVisible(filterLabel);
-
-    outputLabel = new Label("OUTPUT", "OUTPUT");
-    outputLabel->setFont(Font("Small Text", 13, Font::plain));
-    outputLabel->setBounds(396,330,200,20);
-    outputLabel->setColour(Label::textColourId, Colours::grey);
-    //addAndMakeVisible(outputLabel);
-
-    annotationLabel = new Label("ANNOTATION", "Custom annotation");
-    annotationLabel->setBounds(396,420,200,20);
-    annotationLabel->setColour(Label::textColourId, Colours::white);
-    annotationLabel->setEditable(true);
-    annotationLabel->addListener(this);
-    addAndMakeVisible(annotationLabel);
-
-    annotationLabelLabel = new Label("ANNOTATION_LABEL", "ANNOTATION");
-    annotationLabelLabel->setFont(Font("Small Text", 13, Font::plain));
-    annotationLabelLabel->setBounds(396,400,200,20);
-    annotationLabelLabel->setColour(Label::textColourId, Colours::grey);
-    addAndMakeVisible(annotationLabelLabel);
-
-    bistLabel = new Label("TESTS", "Available tests:");
-    bistLabel->setFont(Font("Small Text", 13, Font::plain));
-    bistLabel->setBounds(550, 473, 200, 20);
-    bistLabel->setColour(Label::textColourId, Colours::grey);
-    addAndMakeVisible(bistLabel);
+    //std::cout << "Created Neuropix Interface" << std::endl;
 
     shankPath.startNewSubPath(27, 31);
     shankPath.lineTo(27, 514);
@@ -878,16 +835,11 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     shankPath.lineTo(27+10, 31);
     shankPath.closeSubPath();
 
-    colorSelector = new ColorSelector(this);
-    colorSelector->setBounds(400, 450, 250, 20);
-    addAndMakeVisible(colorSelector);
-
-    //std::cout << "Created Neuropix Interface" << std::endl;
-
     updateInfoString();
 
     displayBuffer.setSize(NUM_CHANNELS, 10000);
 
+    /* Set reference channels */
     for (int i = 0; i < NUM_CHANNELS; i++)
     {
         if (i == 191)
@@ -907,8 +859,6 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     // default settings
     for (int i = 0; i < NUM_CHANNELS; i++)
     {
-        channelApGain.set(i, 3);
-        channelLfpGain.set(i, 2);
         channelReference.set(i, 0);
     }
 
@@ -1005,7 +955,7 @@ void NPX2Interface::updateInfoString()
 
 void NPX2Interface::labelTextChanged(Label* label)
 {
-    if (label == annotationLabel)
+    if (label == annotationEditor)
     {
         colorSelector->updateCurrentString(label->getText());
     }
@@ -1016,26 +966,7 @@ void NPX2Interface::comboBoxChanged(ComboBox* comboBox)
 
     if (!editor->acquisitionIsActive)
     {
-        if (comboBox == apGainComboBox | comboBox == lfpGainComboBox)
-        {
-            CoreServices::sendStatusMessage("Cannot change these settings for NPX2 probes!");
-            /*
-            int gainSettingAp = apGainComboBox->getSelectedId() - 1;
-            int gainSettingLfp = lfpGainComboBox->getSelectedId() - 1;
-
-            //std::cout << " Received gain combo box signal" << 
-
-            thread->setAllGains(slot, port, gainSettingAp, gainSettingLfp);
-
-            for (int i = 0; i < 960; i++)
-            {
-                channelApGain.set(i, gainSettingAp);
-                channelLfpGain.set(i, gainSettingLfp);
-            }
-            */
-
-        }
-        else if (comboBox == referenceComboBox)
+        if (comboBox == referenceComboBox)
         {
 
             int refSetting = comboBox->getSelectedId() - 1;
@@ -1048,20 +979,6 @@ void NPX2Interface::comboBoxChanged(ComboBox* comboBox)
             }
 
         }
-        else if (comboBox == filterComboBox)
-        {
-            CoreServices::sendStatusMessage("Cannot change these settings for NPX2 probes!");
-
-            /*
-            // inform the thread of the new settings
-            int filterSetting = comboBox->getSelectedId() - 1;
-
-            // 0 = ON, disableHighPass = false -> (300 Hz highpass cut-off filter enabled)
-            // 1 = OFF, disableHighPass = true -> (300 Hz highpass cut-off filter disabled)
-            bool disableHighPass = (filterSetting == 1);
-            thread->setFilter(slot, port, disableHighPass);
-            */
-        }
         
         repaint();
     } 
@@ -1073,8 +990,8 @@ void NPX2Interface::comboBoxChanged(ComboBox* comboBox)
 
 void NPX2Interface::setAnnotationLabel(String s, Colour c)
 {
-    annotationLabel->setText(s, NotificationType::dontSendNotification);
-    annotationLabel->setColour(Label::textColourId, c);
+    annotationEditor->setText(s, NotificationType::dontSendNotification);
+    annotationEditor->setColour(Label::textColourId, c);
 }
 
 void NPX2Interface::buttonClicked(Button* button)
@@ -1199,7 +1116,7 @@ void NPX2Interface::buttonClicked(Button* button)
         //Array<int> a = getSelectedChannels();
 
         //if (a.size() > 0)
-        String s = annotationLabel->getText();
+        String s = annotationEditor->getText();
         Array<int> a = getSelectedChannels();
         //Annotation a = Annotation(, getSelectedChannels());
 
@@ -1231,7 +1148,8 @@ void NPX2Interface::buttonClicked(Button* button)
                 {
                     testString += " - PASSED";
                 }
-                else {
+                else 
+                {
                     testString += " - FAILED";
                 }
                 //bistComboBox->setText(testString);
@@ -1385,12 +1303,6 @@ String NPX2Interface::getChannelInfoString(int chan)
         a += "YES";
     else
         a += "NO";
-
-    a += "\nAP Gain: ";
-    a += String(apGainComboBox->getItemText(channelApGain[chan]));
-
-    a += "\nLFP Gain: ";
-    a += String(lfpGainComboBox->getItemText(channelLfpGain[chan]));
 
     a += "\nReference: ";
     a += String(channelReference[chan]);
@@ -1650,7 +1562,6 @@ void NPX2Interface::paint(Graphics& g)
     int xOffset = 30;
 
     // draw zoomed-out channels channels
-
     for (int i = 0; i < channelStatus.size(); i++)
     {
         g.setColour(getChannelColour(i));
@@ -1658,10 +1569,6 @@ void NPX2Interface::paint(Graphics& g)
         g.setPixel(xOffset + ((i % 2)) * 2, 513 - (i / 2));
         g.setPixel(xOffset + ((i % 2)) * 2 + 1, 513 - (i / 2));
     }
-
-    // channel 1 = pixel 513
-    // channel 960 = pixel 33
-    // 480 pixels for 960 channels
 
     // draw channel numbers
 
@@ -1836,6 +1743,7 @@ void NPX2Interface::drawAnnotations(Graphics& g)
             g.drawLine(xLoc - 5, yLoc - 3, xLoc, yLoc - 3);
         }
     }
+
 }
 
 void NPX2Interface::drawLegend(Graphics& g)
@@ -1932,6 +1840,7 @@ void NPX2Interface::drawLegend(Graphics& g)
 
 Colour NPX2Interface::getChannelColour(int i)
 {
+
     if (visualizationMode == 0) // ENABLED STATE
     {
         if (channelStatus[i] == -1) // not available
@@ -1956,35 +1865,8 @@ Colour NPX2Interface::getChannelColour(int i)
         {
             return Colours::brown; // non-selectable reference
         }
-    } else if (visualizationMode == 1) // AP GAIN
-    {
-        if (channelStatus[i] == -1) // not available
-        {
-            return Colours::grey;
-        } 
-        else if (channelStatus[i] < -1) // reference
-        {
-            return Colours::black;
-        }
-        else
-        {
-            return Colour(25*channelApGain[i],25*channelApGain[i],50);
-        } 
-    } else if (visualizationMode == 2) // LFP GAIN
-    {
-        if (channelStatus[i] == -1) // not available
-        {
-            return Colours::grey;
-        } 
-        else if (channelStatus[i] < -1) // reference
-        {
-            return Colours::black;
-        }
-        else
-        {
-            return Colour(66,25*channelLfpGain[i],35*channelLfpGain[i]);
-        } 
-    } else if (visualizationMode == 3) // REFERENCE
+    } 
+    else if (visualizationMode == 3) // REFERENCE
     {
         if (channelStatus[i] == -1) // not available
         {
@@ -2010,16 +1892,7 @@ Colour NPX2Interface::getChannelColour(int i)
         }
         
     }
-    else if (visualizationMode == 5) // LFP
-    {
-        if (channelStatus[i] == -1)
-        {
-            return Colours::grey;
-        }
-        else {
-            return channelColours[i];
-        }   
-    }
+
 }
 
 void NPX2Interface::timerCallback()
@@ -2138,17 +2011,8 @@ void NPX2Interface::saveParameters(XmlElement* xml)
     xmlNode->setAttribute("ZoomHeight", zoomHeight);
     xmlNode->setAttribute("ZoomOffset", zoomOffset);
 
-    xmlNode->setAttribute("apGainValue", apGainComboBox->getText());
-    xmlNode->setAttribute("apGainIndex", apGainComboBox->getSelectedId());
-
-    xmlNode->setAttribute("lfpGainValue", lfpGainComboBox->getText());
-    xmlNode->setAttribute("lfpGainIndex", lfpGainComboBox->getSelectedId());
-
     xmlNode->setAttribute("referenceChannel", referenceComboBox->getText());
     xmlNode->setAttribute("referenceChannelIndex", referenceComboBox->getSelectedId());
-
-    xmlNode->setAttribute("filterCut", filterComboBox->getText());
-    xmlNode->setAttribute("filterCutIndex", filterComboBox->getSelectedId());
 
     xmlNode->setAttribute("visualizationMode", visualizationMode);
 
@@ -2211,19 +2075,6 @@ void NPX2Interface::loadParameters(XmlElement* xml)
                 zoomHeight = xmlNode->getIntAttribute("ZoomHeight");
                 zoomOffset = xmlNode->getIntAttribute("ZoomOffset");
 
-                int apGainIndex = xmlNode->getIntAttribute("apGainIndex");
-                int lfpGainIndex = xmlNode->getIntAttribute("lfpGainIndex");
-
-                if (apGainIndex != apGainComboBox->getSelectedId() || lfpGainIndex != lfpGainComboBox->getSelectedId())
-                {
-                    std::cout << " Updating gains." << std::endl;
-                    apGainComboBox->setSelectedId(apGainIndex, dontSendNotification);
-                    lfpGainComboBox->setSelectedId(lfpGainIndex, dontSendNotification);
-
-                }
-                thread->p_settings.apGainIndex = apGainIndex;
-                thread->p_settings.lfpGainIndex = lfpGainIndex;
-
                 int referenceChannelIndex = xmlNode->getIntAttribute("referenceChannelIndex");
                 if (referenceChannelIndex != referenceComboBox->getSelectedId())
                 {
@@ -2231,19 +2082,6 @@ void NPX2Interface::loadParameters(XmlElement* xml)
                 }
                 thread->p_settings.refChannelIndex = referenceChannelIndex - 1;
                 
-
-                int filterCutIndex = xmlNode->getIntAttribute("filterCutIndex");
-                if (filterCutIndex != filterComboBox->getSelectedId())
-                {
-                    filterComboBox->setSelectedId(filterCutIndex, dontSendNotification);
-                }
-                int filterSetting = filterCutIndex - 1;
-                if (filterSetting == 0)
-                    thread->p_settings.disableHighPass = false;
-                else
-                    thread->p_settings.disableHighPass = true;
-                
-
                 forEachXmlChildElement(*xmlNode, annotationNode)
                 {
                     if (annotationNode->hasTagName("ANNOTATION"))

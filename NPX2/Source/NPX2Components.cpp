@@ -140,6 +140,7 @@ void Probe::getInfo()
 	errorCode = np::readProbePN(basestation->slot, port, dock, pn, MAXLEN);
 
 	part_number = String(pn);
+	
 }
 
 Probe::Probe(Basestation* bs, int port, int dock) : Thread("probe_" + String(port)), 
@@ -159,15 +160,6 @@ Probe::Probe(Basestation* bs, int port, int dock) : Thread("probe_" + String(por
 		channelMap.add(np::electrodebanks_t::None);
 	}
 
-	gains.add(50.0f);
-	gains.add(125.0f);
-	gains.add(250.0f);
-	gains.add(500.0f);
-	gains.add(1000.0f);
-	gains.add(1500.0f);
-	gains.add(2000.0f);
-	gains.add(3000.0f);
-
 	fifoFillPercentage = 0.0f;
 
 }
@@ -180,45 +172,6 @@ void Probe::setStatus(int status)
 void Probe::setSelected(bool isSelected)
 {
 	this->isSelected = isSelected;
-}
-
-void Probe::calibrate()
-{
-	File baseDirectory = File::getSpecialLocation(File::currentExecutableFile).getParentDirectory();
-	File calibrationDirectory = baseDirectory.getChildFile("CalibrationInfo");
-	File probeDirectory = calibrationDirectory.getChildFile(String(serial_number));
-
-	std::cout << probeDirectory.getFullPathName() << std::endl;
-
-	if (probeDirectory.exists())
-	{
-		String adcFile = probeDirectory.getChildFile(String(serial_number) + "_ADCCalibration.csv").getFullPathName();
-		String gainFile = probeDirectory.getChildFile(String(serial_number) + "_gainCalValues.csv").getFullPathName();
-		std::cout << adcFile << std::endl;
-		
-		errorCode = np::setADCCalibration(basestation->slot, port, adcFile.toRawUTF8());
-
-		if (errorCode == 0)
-			std::cout << "Successful ADC calibration." << std::endl;
-		else
-			std::cout << "Unsuccessful ADC calibration, failed with error code: " << errorCode << std::endl;
-
-		std::cout << gainFile << std::endl;
-		
-		errorCode = np::setGainCalibration(basestation->slot, port, dock, gainFile.toRawUTF8());
-
-		if (errorCode == 0)
-			std::cout << "Successful gain calibration." << std::endl;
-		else
-			std::cout << "Unsuccessful gain calibration, failed with error code: " << errorCode << std::endl;
-
-		errorCode = np::writeProbeConfiguration(basestation->slot, port, dock, false);
-	}
-	else {
-		// show popup notification window
-		String message = "Missing calibration files for probe serial number " + String(serial_number) + ". ADC and Gain calibration files must be located in 'CalibrationInfo\\<serial_number>' folder in the directory where the Open Ephys GUI was launched. The GUI will proceed without calibration.";
-		AlertWindow::showMessageBox(AlertWindow::AlertIconType::WarningIcon, "Calibration files missing", message, "OK");
-	}
 }
 
 void Probe::setChannels(Array<int> channelStatus)
@@ -277,37 +230,6 @@ void Probe::setChannels(Array<int> channelStatus)
 
 }
 
-void Probe::setApFilterState(bool disableHighPass)
-{
-	/*
-	for (int channel = 0; channel < 384; channel++)
-		errorCode = np::setAPCornerFrequency(basestation->slot, port, dock, channel, disableHighPass);
-
-	errorCode = np::writeProbeConfiguration(basestation->slot, port, dock, false);
-
-	std::cout << "Wrote filter " << int(disableHighPass) << " with error code " << errorCode << std::endl;
-	*/
-	CoreServices::sendStatusMessage("Set AP Bandwidth not valid for NPX2 probes!");
-}
-
-void Probe::setGains(unsigned char apGain, unsigned char lfpGain)
-{
-	/*
-	for (int channel = 0; channel < 384; channel++)
-	{
-		errorCode = np2::setGain(basestation->slot, port, channel, dock, apGain, lfpGain);
-		apGains.set(channel, int(apGain));
-		lfpGains.set(channel, int(lfpGain));
-	}
-		
-	errorCode = np::writeProbeConfiguration(basestation->slot, port, dock, false);
-
-	std::cout << "Wrote gain " << int(apGain) << ", " << int(lfpGain) << " with error code " << errorCode << std::endl;
-	*/
-	CoreServices::sendStatusMessage("Set AP Gain not valid for NPX2 probes!");
-}
-
-
 void Probe::setReferences(np::channelreference_t ref, np::electrodebanks_t bank)
 {
 	
@@ -330,7 +252,7 @@ void Probe::run()
 			basestation->slot,
 			port,
 			dock,
-			static_cast<np::streamsource_t>(0),  
+			static_cast<np::streamsource_t>(0), 
 			&pckinfo[0],
 			&data[0],
 			samplesToRead,
@@ -444,7 +366,6 @@ void Basestation::init()
 			std::cout << "  FAILED!." << std::endl;
 		else
 		{
-			setGains(this->slot, probes[i]->port, probes[i]->dock, 3, 2); // set defaults
 			probes[i]->setStatus(1);
 			std::cout << "  Success!" << std::endl;
 		}
@@ -523,10 +444,9 @@ float Basestation::getFillPercentage()
 {
 	float perc = 0.0;
 
+	//Use the highest fifo percentage of all probes
 	for (int i = 0; i < getProbeCount(); i++)
 	{
-		//TODO: Verify this makes sense...
-
 		if (probes[i]->fifoFillPercentage > perc)
 			perc = probes[i]->fifoFillPercentage;
 	}
@@ -573,8 +493,7 @@ void Basestation::initializeProbes()
 
 void Basestation::startAcquisition()
 {
-	printf("[NPXC2] Basestation::startAcquisition()\n");
-	printf("[NPXC2] probes.size() = %d\n", probes.size());
+
 	for (int i = 0; i < probes.size(); i++)
 	{
 		std::cout << "Probe " << int(probes[i]->port) << " setting timestamp to 0" << std::endl;
@@ -695,42 +614,6 @@ bool Basestation::runBist(int slot, int port, int dock, int bistIndex)
 
 	return returnValue;
 
-}
-
-void Basestation::setApFilterState(int slot, int port, int dock, bool disableHighPass)
-{
-	/*
-	if (slot == this->slot)
-	{
-		for (int i = 0; i < probes.size(); i++)
-		{
-			if (probes[i]->port == port && probes[i]->dock == dock)
-			{
-				probes[i]->setApFilterState(disableHighPass);
-				std::cout << "Set all filters to " << int(disableHighPass) << std::endl;
-			}
-		}
-	}
-	*/
-	
-}
-
-void Basestation::setGains(int slot, int port, int dock, unsigned char apGain, unsigned char lfpGain)
-{
-	/*
-	if (slot == this->slot)
-	{
-		for (int i = 0; i < probes.size(); i++)
-		{
-			if (probes[i]->port == port && probes[i]->dock == dock)
-			{
-				probes[i]->setGains(apGain, lfpGain);
-				std::cout << "Set all gains to " << int(apGain) << ":" << int(lfpGain) << std::endl;
-			}
-		}
-	}
-	*/
-	
 }
 
 void Basestation::setReferences(int slot, int port, int dock, np::channelreference_t ref, np::electrodebanks_t bank)

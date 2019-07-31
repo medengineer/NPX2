@@ -165,10 +165,7 @@ public:
 	Array<int> apGains;
 	Array<int> lfpGains;
 
-	void setApFilterState(bool);
 	void setReferences(np::channelreference_t refId, np::electrodebanks_t refBank);
-	void setGains(unsigned char apGain, unsigned char lfpGain);
-
 	void calibrate();
 
 	void setStatus(int status_);

@@ -142,10 +142,7 @@ public:
             int port;
             int dock;
             Array<int> channelStatus;
-            int apGainIndex;
-            int lfpGainIndex;
             int refChannelIndex;
-            bool disableHighPass;
         } p_settings;
         Array<probeSettings> probeSettingsUpdateQueue;
 

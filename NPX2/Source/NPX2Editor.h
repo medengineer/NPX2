@@ -247,7 +247,7 @@ private:
     ScopedPointer<Label> filterLabel;
     ScopedPointer<Label> outputLabel;
     ScopedPointer<Label> bistLabel;
-    ScopedPointer<Label> annotationLabelLabel;
+    ScopedPointer<Label> annotationEditor;
     ScopedPointer<Label> annotationLabel;
 
     ScopedPointer<Label> mainLabel;
