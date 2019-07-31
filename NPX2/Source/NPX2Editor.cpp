@@ -645,7 +645,7 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     isSelectionActive = false;
     isOverChannel = false;
     
-    for (int i = 0; i < 960; i++)
+    for (int i = 0; i < NUM_ELECTRODES; i++)
     {
         channelStatus.add(-1);
         channelReference.add(0);
@@ -697,9 +697,10 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     referenceComboBox->addListener(this);
     referenceComboBox->addItem("Ext", 1);
     referenceComboBox->addItem("Tip", 2);
-    referenceComboBox->addItem("192", 3);
-    referenceComboBox->addItem("576", 4);
-    referenceComboBox->addItem("960", 5);
+    referenceComboBox->addItem("127", 3);
+    referenceComboBox->addItem("507", 4);
+    referenceComboBox->addItem("887", 5);
+    referenceComboBox->addItem("1251", 6); //follows 0-indexed electrode numbering
     referenceComboBox->setSelectedId(1, dontSendNotification);
 
     filterComboBox = new ComboBox("FilterComboBox");
@@ -879,9 +880,9 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
 
     updateInfoString();
 
-    displayBuffer.setSize(768, 10000);
+    displayBuffer.setSize(NUM_CHANNELS, 10000);
 
-    for (int i = 0; i < 384; i++)
+    for (int i = 0; i < NUM_CHANNELS; i++)
     {
         if (i == 191)
             channelStatus.set(i, -2);
@@ -889,7 +890,7 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
             channelStatus.set(i, 1);
     }
 
-    for (int i = 384; i < 960; i++)
+    for (int i = NUM_CHANNELS; i < NUM_ELECTRODES; i++)
     {
         if (i == 575 || i == 959)
             channelStatus.set(i, -2);
@@ -898,7 +899,7 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     }
 
     // default settings
-    for (int i = 0; i < 384; i++)
+    for (int i = 0; i < NUM_CHANNELS; i++)
     {
         channelApGain.set(i, 3);
         channelLfpGain.set(i, 2);
@@ -1030,17 +1031,15 @@ void NPX2Interface::comboBoxChanged(ComboBox* comboBox)
         }
         else if (comboBox == referenceComboBox)
         {
-            CoreServices::sendStatusMessage("Cannot change these settings for NPX2 probes!");
-            /*
+
             int refSetting = comboBox->getSelectedId() - 1;
             
-            thread->setAllReferences(slot, port, refSetting);
+            thread->setAllReferences(slot, port, dock, refSetting);
 
-            for (int i = 0; i < 960; i++)
+            for (int i = 0; i < NUM_ELECTRODES; i++)
             {
                 channelReference.set(i, refSetting);
             }
-            */
 
         }
         else if (comboBox == filterComboBox)
@@ -1076,7 +1075,7 @@ void NPX2Interface::buttonClicked(Button* button)
 {
     if (button == selectAllButton)
     {
-        for (int i = 0; i < 960; i++)
+        for (int i = 0; i < NUM_ELECTRODES; i++)
         {
             channelSelectionState.set(i, 1);
         }
@@ -1111,7 +1110,7 @@ void NPX2Interface::buttonClicked(Button* button)
         {
             int maxChan = 0;
 
-            for (int i = 0; i < 960; i++)
+            for (int i = 0; i < NUM_ELECTRODES; i++)
             {
                 if (channelSelectionState[i] == 1) // channel is currently selected
                 {
@@ -1132,7 +1131,7 @@ void NPX2Interface::buttonClicked(Button* button)
 
                             int newChan = j + i;
 
-                            if (newChan >= 0 && newChan < 960 && newChan != i)
+                            if (newChan >= 0 && newChan < NUM_ELECTRODES && newChan != i)
                             {
                                 //std::cout << "  In range" << std::endl;
 
@@ -1161,7 +1160,7 @@ void NPX2Interface::buttonClicked(Button* button)
         {
 
 
-            for (int i = 0; i < 960; i++)
+            for (int i = 0; i < NUM_ELECTRODES; i++)
             {
                 if (channelSelectionState[i] == 1)
                 {
@@ -1177,7 +1176,7 @@ void NPX2Interface::buttonClicked(Button* button)
     {
         if (!editor->acquisitionIsActive)
         {
-            for (int i = 0; i < 960; i++)
+            for (int i = 0; i < NUM_ELECTRODES; i++)
             {
                 if (channelSelectionState[i] == 1)
                 {
@@ -1247,7 +1246,7 @@ Array<int> NPX2Interface::getSelectedChannels()
 {
     Array<int> a;
 
-    for (int i = 0; i < 960; i++)
+    for (int i = 0; i < NUM_ELECTRODES; i++)
     {
         if (channelSelectionState[i] == 1)
         {
@@ -1418,7 +1417,7 @@ void NPX2Interface::mouseDown(const MouseEvent& event)
 
             if (!event.mods.isShiftDown())
             {
-                for (int i = 0; i < 960; i++)
+                for (int i = 0; i < NUM_ELECTRODES; i++)
                     channelSelectionState.set(i, 0);
             }
 
@@ -1428,7 +1427,7 @@ void NPX2Interface::mouseDown(const MouseEvent& event)
 
                 //std::cout << chan << std::endl;
 
-                if (chan >= 0 && chan < 960)
+                if (chan >= 0 && chan < NUM_ELECTRODES)
                 {
                     channelSelectionState.set(chan, 1);
                 }
@@ -1561,7 +1560,7 @@ void NPX2Interface::mouseDrag(const MouseEvent& event)
 
         if (x < 225 + channelHeight)
         {
-            for (int i = 0; i < 960; i++)
+            for (int i = 0; i < NUM_ELECTRODES; i++)
             {
                 if (i >= chanStart && i <= chanEnd)
                 {
@@ -1583,7 +1582,7 @@ void NPX2Interface::mouseDrag(const MouseEvent& event)
                 }
             }
         } else {
-            for (int i = 0; i < 960; i++)
+            for (int i = 0; i < NUM_ELECTRODES; i++)
             {
                 if (!event.mods.isShiftDown())
                     channelSelectionState.set(i, 0);
@@ -1693,7 +1692,7 @@ void NPX2Interface::paint(Graphics& g)
 
     for (int i = lowestChan; i <= highestChan; i++)
     {
-        if (i >= 0 && i < 960)
+        if (i >= 0 && i < NUM_ELECTRODES)
         {
 
             float xLoc = 225 - channelHeight * (1 - (i % 2));
@@ -2034,7 +2033,7 @@ void NPX2Interface::timerCallback()
 
     if (numSamples > 0)
     {
-        for (int i = 0; i < 960; i++)
+        for (int i = 0; i < NUM_ELECTRODES; i++)
         {
             if (visualizationMode == 4)
                 channelColours.set(i, Colour(random.nextInt(256), random.nextInt(256), 0));
@@ -2043,7 +2042,7 @@ void NPX2Interface::timerCallback()
         }
     }
     else {
-        for (int i = 0; i < 960; i++)
+        for (int i = 0; i < NUM_ELECTRODES; i++)
         {
             channelColours.set(i, Colour(20, 20, 20));
         }
@@ -2064,21 +2063,21 @@ void NPX2Interface::timerCallback()
 int NPX2Interface::getChannelForElectrode(int ch)
 {
     // returns actual mapped channel for individual electrode
-    if (ch < 384)
+    if (ch < NUM_CHANNELS)
         return ch;
-    else if (ch >= 384 && ch < 768)
-        return ch - 384;
+    else if (ch >= NUM_CHANNELS && ch < 2 * NUM_CHANNELS)
+        return ch - NUM_CHANNELS;
     else
-        return ch - 384 * 2;
+        return ch - NUM_CHANNELS * 2;
     
 }
 
 int NPX2Interface::getConnectionForChannel(int ch)
 {
 
-    if (ch < 384)
+    if (ch < NUM_CHANNELS)
         return 0;
-    else if (ch >= 384 && ch < 768)
+    else if (ch >= NUM_CHANNELS && ch < 2 * NUM_CHANNELS)
         return 1;
     else
         return 2;
@@ -2255,6 +2254,7 @@ void NPX2Interface::loadParameters(XmlElement* xml)
 
                 thread->p_settings.slot = slot;
                 thread->p_settings.port = port;
+                thread->p_settings.dock = dock;
                 thread->updateProbeSettingsQueue();
                 
             }

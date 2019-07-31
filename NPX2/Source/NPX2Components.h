@@ -31,11 +31,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "npx2-api/NeuropixAPI.h"
 
 #define MAX_NUM_SLOTS 		32
-#define NUM_CHANNELS 		384
-#define NUM_ELECTRODES 		1280
-#define NUM_REF_ELECTRODES 	5
 #define NUM_PORTS 			4
 #define NUM_DOCKS 			2
+#define NUM_CHANNELS 		384
+#define NUM_ELECTRODES 		1280
 #define SAMPLECOUNT 		64	
 
 class BasestationConnectBoard;
@@ -97,7 +96,7 @@ public:
 
 	bool runBist(int slot, int port, int dock, int bistIndex);
 	void setChannels(int slot, int port, int dock, Array<int> channelStatus);
-	void setReferences(int slot, int port, int dock, np::channelreference_t refId, np::electrodebanks_t bank);
+	void setReferences(int slot, int port, int dock, np::channelreference_t ref, np::electrodebanks_t bank);
 	void setGains(int slot, int port, int dock, unsigned char apGain, unsigned char lfpGain);
 	void setApFilterState(int slot, int port, int dock, bool filterState);
 

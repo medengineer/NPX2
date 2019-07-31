@@ -161,12 +161,43 @@ void NPX2Thread::applyProbeSettingsQueue()
 {
     for (auto settings : probeSettingsUpdateQueue)
     {
+        
+        selectElectrodes(settings.slot, settings.port, settings.dock, settings.channelStatus);
+        setAllReferences(settings.slot, settings.port, settings.dock, settings.refChannelIndex);
         /*
-        selectElectrodes(settings.slot, settings.port, settings.channelStatus);
         setAllGains(settings.slot, settings.port, settings.apGainIndex, settings.lfpGainIndex);
-        setAllReferences(settings.slot, settings.port, settings.refChannelIndex);
         setFilter(settings.slot, settings.port, settings.disableHighPass);
         */
+
+    }
+}
+
+void NPX2Thread::setAllReferences(int slot, int port, int dock, int refId)
+{
+ 
+    np::NP_ErrorCode ec;
+    np::channelreference_t ref;
+    np::electrodebanks_t bank;
+
+    if (refId == 0) // external reference
+    {
+        ref = np::EXT_REF;
+        bank = np::None;
+    }
+    else if (refId == 1) // tip reference
+    {
+        ref = np::TIP_REF;
+        bank = np::None;
+    }
+    else if (refId > 1) // internal reference
+    {
+        ref = np::INT_REF;
+        bank = static_cast<np::electrodebanks_t>(refId - 1);
+    }
+
+    for (int i = 0; i < basestations.size(); i++)
+    {
+        basestations[i]->setReferences(slot, port, dock, ref, bank);
     }
 }
 

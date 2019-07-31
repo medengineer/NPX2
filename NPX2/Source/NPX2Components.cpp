@@ -310,17 +310,16 @@ void Probe::setGains(unsigned char apGain, unsigned char lfpGain)
 }
 
 
-void Probe::setReferences(np::channelreference_t refId, np::electrodebanks_t refBank)
+void Probe::setReferences(np::channelreference_t ref, np::electrodebanks_t bank)
 {
-	/*
-	for (int channel = 0; channel < 384; channel++)
-		errorCode = np::setReference(basestation->slot, port, dock, channel, shank, refId, refBank);
+	
+	for (int channel = 0; channel < NUM_CHANNELS; channel++)
+		errorCode = np::setReference(basestation->slot, port, dock, channel, shank, ref, bank);
 
 	bool readCheck = false;
 	errorCode = np::writeProbeConfiguration(basestation->slot, port, dock, readCheck);
-	*/
 
-	std::cout << "Wrote reference " << int(refId) << ", " << int(refBank) << " with error code " << errorCode << std::endl;
+	std::cout << "Wrote reference " << int(ref) << ", " << int(bank) << " with error code " << errorCode << std::endl;
 }
 
 void Probe::run()
@@ -729,7 +728,7 @@ void Basestation::setGains(int slot, int port, int dock, unsigned char apGain, u
 	
 }
 
-void Basestation::setReferences(int slot, int port, int dock, np::channelreference_t refId, np::electrodebanks_t refBank)
+void Basestation::setReferences(int slot, int port, int dock, np::channelreference_t ref, np::electrodebanks_t bank)
 {
 	if (slot == this->slot)
 	{
@@ -737,8 +736,8 @@ void Basestation::setReferences(int slot, int port, int dock, np::channelreferen
 		{
 			if (probes[i]->port == port && probes[i]->dock == dock)
 			{
-				probes[i]->setReferences(refId, refBank);
-				std::cout << "Set all references to " << refId << ":" << int(refBank) << std::endl;
+				probes[i]->setReferences(ref, bank);
+				std::cout << "Set all references to " << ref << ":" << bank << std::endl;
 			}
 		}
 	}

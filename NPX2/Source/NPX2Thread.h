@@ -86,6 +86,10 @@ public:
         /** Selects which electrode is connected to each channel. */
         void selectElectrodes(int slot, int port, int dock, Array<int> channelStatus);
 
+        /** Selects which reference is used for each channel. */
+        void setAllReferences(int slot, int port, int dock, int refId);
+
+        /** Runs Built-In Self Test (BIST) */
         bool runBist(int slot, int port, int dock, int bistIndex);
 
         /** Initializes data transfer.*/
@@ -134,8 +138,9 @@ public:
 
         /* Loading settings */ 
         struct probeSettings {
-            unsigned char slot;
-            signed char port;
+            int slot;
+            int port;
+            int dock;
             Array<int> channelStatus;
             int apGainIndex;
             int lfpGainIndex;
