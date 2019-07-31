@@ -72,9 +72,6 @@ public:
         Array<int> getSyncFrequencies();
         void setSyncFrequency(int slotIndex, int freqIndex);
 
-        bool startAcquisition() override;
-        bool stopAcquisition() override;
-
         float getFillPercentage(int slot);
 
         void setRecordMode(bool recordToNpx);
@@ -90,6 +87,12 @@ public:
         void selectElectrodes(int slot, int port, int dock, Array<int> channelStatus);
 
         bool runBist(int slot, int port, int dock, int bistIndex);
+
+        /** Initializes data transfer.*/
+        bool startAcquisition() override;
+
+        /** Stops data transfer.*/
+        bool stopAcquisition() override;
 
         // DataThread Methods
 

@@ -336,7 +336,7 @@ bool NPX2Thread::runBist(int slot, int port, int dock, int bistIndex)
 
 bool NPX2Thread::updateBuffer()
 {
-	/*
+
     bool shouldRecord = CoreServices::getRecordingStatus();
 
     if (!isRecording && shouldRecord)
@@ -349,7 +349,6 @@ bool NPX2Thread::updateBuffer()
         isRecording = false;
         stopRecording();
     }
-    */
 
     return true;
 }
