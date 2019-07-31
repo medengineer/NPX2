@@ -326,12 +326,8 @@ void Probe::setReferences(np::channelreference_t refId, np::electrodebanks_t ref
 void Probe::run()
 {
 
-	int count = 0;
-
 	while (!threadShouldExit())
 	{
-
-		count++;
 
 		errorCode = np::readPacket(
 			basestation->slot,
@@ -371,11 +367,6 @@ void Probe::run()
 				&headroom);
 
 			fifoFillPercentage = float(packetsAvailable) / float(packetsAvailable + headroom);
-
-			if (count % 10000 == 0)
-			{
-				printf("Convert: %d -> %1.2f\n", data[0], samples[0]);
-			}
 
 		}
 

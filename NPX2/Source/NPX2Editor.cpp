@@ -276,7 +276,7 @@ NPX2Editor::NPX2Editor(GenericProcessor* parentNode, NPX2Thread* t, bool useDefa
     thread = t;
     canvas = nullptr;
 
-    tabText = "Neuropix PXI";
+    tabText = "NPX2";
 
     int numBasestations = t->getNumBasestations();
 
@@ -421,7 +421,6 @@ void NPX2Editor::buttonEvent(Button* button)
         probe->setSelectedState(true);
         thread->setSelectedProbe(probe->slot, probe->port, probe->dock);
       
-        printf("setSelectedProbe: slot: %d port: %d, dock: %d\n", probe->slot, probe->port, probe->dock); fflush(stdout);
         if (canvas != nullptr)
             canvas->setSelectedProbe(probe->slot, probe->port, probe->dock);
 
@@ -492,11 +491,8 @@ void NPX2Editor::loadEditorParameters(XmlElement* xml)
 
 Visualizer* NPX2Editor::createNewCanvas(void)
 {
-    std::cout << "Button clicked..." << std::endl;
     GenericProcessor* processor = (GenericProcessor*) getProcessor();
-    std::cout << "Got processor." << std::endl;
     canvas = new NPX2Canvas(processor, this, thread);
-    std::cout << "Created canvas." << std::endl;
     return canvas;
 }
 
@@ -608,8 +604,6 @@ void NPX2Canvas::setSelectedProbe(int slot, int port, int dock)
 
     for (int i = 0; i < neuropixInterfaces.size(); i++)
     {
-        printf("Checking nueropixInterface w/ slot: %d, port: %d, dock %d\n", slot, port, dock); fflush(stdout);
-        printf("Got: slot: %d, port: %d, dock %d\n", neuropixInterfaces[i]->slot, neuropixInterfaces[i]->port, neuropixInterfaces[i]->dock); fflush(stdout);
         if (neuropixInterfaces[i]->slot == slot && \
             neuropixInterfaces[i]->port == port && \
             neuropixInterfaces[i]->dock == dock)
@@ -2098,7 +2092,7 @@ void NPX2Interface::saveParameters(XmlElement* xml)
             {
                 forEachXmlChildElement(*bs_info, probe_info)
                 {
-                    if (probe_info->getIntAttribute("port") == port)
+                    if (probe_info->getIntAttribute("port") == port && probe_info->getIntAttribute("dock") == dock)
                     {
                         xmlNode->setAttribute("basestation_index", bs_info->getIntAttribute("index"));
                         xmlNode->setAttribute("slot", bs_info->getIntAttribute("slot"));
@@ -2107,6 +2101,7 @@ void NPX2Interface::saveParameters(XmlElement* xml)
                         xmlNode->setAttribute("bsc_part_number", bs_info->getStringAttribute("bsc_part_number"));
                         xmlNode->setAttribute("bsc_serial_number", bs_info->getStringAttribute("bsc_serial_number"));
                         xmlNode->setAttribute("port", probe_info->getStringAttribute("port"));
+                        xmlNode->setAttribute("dock", probe_info->getStringAttribute("dock"));
                         xmlNode->setAttribute("probe_serial_number", probe_info->getStringAttribute("probe_serial_number"));
                         xmlNode->setAttribute("hs_serial_number", probe_info->getStringAttribute("hs_serial_number"));
                         xmlNode->setAttribute("hs_part_number", probe_info->getStringAttribute("hs_part_number"));
@@ -2169,7 +2164,7 @@ void NPX2Interface::loadParameters(XmlElement* xml)
             {
                 forEachXmlChildElement(*bs_info, probe_info)
                 {
-                    if (probe_info->getIntAttribute("port") == port)
+                    if (probe_info->getIntAttribute("port") == port && probe_info->getIntAttribute("dock") == dock)
                     {
                         mySerialNumber = probe_info->getStringAttribute("probe_serial_number", "none");
                     }
