@@ -154,10 +154,8 @@ Probe::Probe(Basestation* bs, int port, int dock) : Thread("probe_" + String(por
 
 	getInfo();
 
-	for (int i = 0; i < 384; i++)
+	for (int i = 0; i < NUM_CHANNELS; i++)
 	{
-		apGains.add(3); // default = 500
-		lfpGains.add(2); // default = 250
 		channelMap.add(np::electrodebanks_t::None);
 	}
 
@@ -414,9 +412,16 @@ Basestation::Basestation(int slot_number) : probesInitialized(false)
 
 				if (errorCode == np::SUCCESS)
 				{
-					probes.add(new Probe(this, port, dock));
-					printf("***Added new probe: port: %d, dock: %d\n", port, dock);
-					probes[probes.size() - 1]->setStatus(2); 
+					Probe* probe = new Probe(this, port, dock);
+					if (probe->serial_number / NPX2_MIN_PROBE_SERIAL > 0)
+					{
+						probes.add(probe);
+						probes[probes.size() - 1]->setStatus(2); 
+					}
+					else
+					{
+						delete probe;
+					}
 				}
 			}
 		}

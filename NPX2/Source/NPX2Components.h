@@ -37,6 +37,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define NUM_ELECTRODES 		1280
 #define SAMPLECOUNT 		64	
 
+#define NPX2_MIN_PROBE_SERIAL 19000000000
+
 class BasestationConnectBoard;
 class Flex;
 class Headstage;
