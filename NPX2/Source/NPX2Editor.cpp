@@ -37,13 +37,17 @@ void EditorBackground::paint(Graphics& g)
 
     float x;
     float y = 13;
-    float width = 32; 
-    float height = 98;
+    float width;
+    float height;
     float cornerSize = 4;
-    float lineThickness = 3;
+    float lineThickness;
 
     for (int i = 0; i < numBasestations; i++)
     {
+
+        width = 32;
+        height = 98;
+        lineThickness = 3;
 
         x = 90 * i + 32;
 
@@ -73,11 +77,12 @@ void EditorBackground::paint(Graphics& g)
         //Number labels for each port
         x = x - 65;
         width = height;
-        for (int j = 0; j < 4; j++)
+        for (int j = 0; j < NUM_PORTS; j++)
         {
             g.setFont(10);
             g.drawText(String(j + 1), x, 90 - j * 22, width, height, Justification::centredLeft);
         }
+
     }
 
     //Sync configuration labels
@@ -280,10 +285,11 @@ NPX2Editor::NPX2Editor(GenericProcessor* parentNode, NPX2Thread* t, bool useDefa
 
     int numBasestations = t->getNumBasestations();
 
-    for (int i = 0; i < 2*4*numBasestations; i++)
+    for (int i = 0; i < numBasestations * (NUM_PORTS * NUM_DOCKS); i++)
     {
-        int slotIndex = i / 8;
-        int portIndex = i / 2 + 1;
+
+        int slotIndex = i / (NUM_PORTS * NUM_DOCKS);
+        int portIndex = (i / 2) % NUM_PORTS + 1;
         int dockIndex = i % 2; 
 
         int x_pos = slotIndex * 90 + 33 + dockIndex * 15;
