@@ -199,6 +199,7 @@ void NPX2Thread::setAllReferences(int slot, int port, int dock, int refId)
     {
         basestations[i]->setReferences(slot, port, dock, ref, bank);
     }
+
 }
 
 bool NPX2Thread::foundInputSource()
@@ -490,11 +491,11 @@ void NPX2Thread::setDefaultChannelNames()
 {
     for (int bs_num = 0; bs_num < basestations.size(); bs_num++)
     {
-        for (int i = 0; i < 384; i++)
+        for (int i = 0; i < NUM_CHANNELS; i++)
         {
             ChannelCustomInfo info;
             info.name = "CH" + String(i + 1);
-            info.gain = 0.1950000f;
+            info.gain = NPX2_BITVOLTS;
             channelInfo.set(i, info);
         }
     }
@@ -531,13 +532,13 @@ int NPX2Thread::getNumTTLOutputs(int subProcessorIdx) const
 /** Returns the sample rate of the data source.*/
 float NPX2Thread::getSampleRate(int subProcessorIdx) const
 {
-	return 30000;
+	return SAMPLERATE;
 }
 
 /** Returns the volts per bit of the data source.*/
 float NPX2Thread::getBitVolts(const DataChannel* chan) const
 {
-	return 0.1950000f;
+	return NPX2_BITVOLTS;
 }
 
 void NPX2Thread::setTriggerMode(bool useInternalTrigger)

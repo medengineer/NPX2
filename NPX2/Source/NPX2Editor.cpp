@@ -21,8 +21,17 @@
 
 */
 
+#include <algorithm> // for std::find
+#include <iterator>  // for std::begin, std::end
+
 #include "NPX2Thread.h"
 #include "NPX2Editor.h"
+
+#define ZOOMED_CHANNEL_XOFFSET      240
+
+#define DEFAULT_CHANNEL_COLOR       Colour(20,20,20)
+#define IS_OVER_CHANNEL_COLOR       Colour(55,55,55)
+#define IS_OVER_ZOOM_REGION_COLOR   Colour(25,25,25)
 
 EditorBackground::EditorBackground(int numBasestations, bool freqSelectEnabled)
     : numBasestations(numBasestations), freqSelectEnabled(freqSelectEnabled) {}
@@ -588,7 +597,7 @@ void NPX2Canvas::resized()
     neuropixViewport->setBounds(0,0,getWidth(),getHeight());
 
     for (int i = 0; i < neuropixInterfaces.size(); i++)
-        neuropixInterfaces[i]->setBounds(0,0,getWidth()-neuropixViewport->getScrollBarThickness(), 600);
+        neuropixInterfaces[i]->setBounds(0,0,getWidth()-neuropixViewport->getScrollBarThickness(), 800);
 }
 
 void NPX2Canvas::setParameter(int x, float f)
@@ -657,7 +666,7 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
         channelReference.add(0);
         channelSelectionState.add(0);
         channelOutput.add(1);
-        channelColours.add(Colour(20,20,20));
+        channelColours.add(DEFAULT_CHANNEL_COLOR);
     }
 
     visualizationMode = 0;
@@ -665,7 +674,7 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     addMouseListener(this, true);
 
     zoomHeight = 50;
-    lowerBound = 530;
+    lowerBound = 680;
     zoomOffset = 0;
     dragZoneWidth = 10;
 
@@ -687,7 +696,6 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     addAndMakeVisible(enableViewButton);
 
     /* REFERENCE SELECTION */
-
     referenceLabel = new Label("REFERENCE", "REFERENCE");
     referenceLabel->setFont(Font("Small Text", 13, Font::plain));
     referenceLabel->setBounds(396,130,100,20);
@@ -700,10 +708,10 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     referenceComboBox->addListener(this);
     referenceComboBox->addItem("Ext", 1);
     referenceComboBox->addItem("Tip", 2);
-    referenceComboBox->addItem("127", 3);
-    referenceComboBox->addItem("507", 4);
-    referenceComboBox->addItem("887", 5);
-    referenceComboBox->addItem("1251", 6); //follows 0-indexed electrode numbering
+    for (auto electrode : REF_ELECTRODES)
+    {
+        referenceComboBox->addItem(String(electrode), referenceComboBox->getNumItems()+1);
+    }
     referenceComboBox->setSelectedId(1, dontSendNotification);
 
     addAndMakeVisible(referenceComboBox);
@@ -828,38 +836,21 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
 
     //std::cout << "Created Neuropix Interface" << std::endl;
 
-    shankPath.startNewSubPath(27, 31);
-    shankPath.lineTo(27, 514);
-    shankPath.lineTo(27+5, 522);
-    shankPath.lineTo(27+10, 514);
-    shankPath.lineTo(27+10, 31);
-    shankPath.closeSubPath();
-
     updateInfoString();
 
     displayBuffer.setSize(NUM_CHANNELS, 10000);
 
-    /* Set reference channels */
-    for (int i = 0; i < NUM_CHANNELS; i++)
-    {
-        if (i == 191)
-            channelStatus.set(i, -2);
-        else
-            channelStatus.set(i, 1);
-    }
+    /* Set channel status */
+    int refs[NUM_REF_ELECTRODES] = REF_ELECTRODES;
 
-    for (int i = NUM_CHANNELS; i < NUM_ELECTRODES; i++)
+    for (int i = 0; i < NUM_ELECTRODES; i++)
     {
-        if (i == 575 || i == 959)
+        channelStatus.set(i, 1); //enabled by default
+        if (std::find(std::begin(refs), std::end(refs), i + 1) != std::end(refs))
+        {
             channelStatus.set(i, -2);
-        else
-            channelStatus.set(i, 0);
-    }
-
-    // default settings
-    for (int i = 0; i < NUM_CHANNELS; i++)
-    {
-        channelReference.set(i, 0);
+        }
+        channelReference.set(i, 0); //EXT ref by default
     }
 
 }
@@ -969,8 +960,24 @@ void NPX2Interface::comboBoxChanged(ComboBox* comboBox)
         if (comboBox == referenceComboBox)
         {
 
+            int refs[NUM_REF_ELECTRODES] = REF_ELECTRODES;
             int refSetting = comboBox->getSelectedId() - 1;
-            
+
+            if (refSetting > 1) //internal reference selected...
+            {
+                //Disable reference electrode from recording
+                int electrode = refs[refSetting - 2];
+                channelStatus.set(electrode - 1, 0); 
+            }
+            else //external-reference selected, enable all internal ref channels to record
+            {
+                //Enable all internal ref electrodes for recording
+                for (auto electrode : refs)
+                {
+                    channelStatus.set(electrode - 1, 1);
+                }
+            }
+            thread->selectElectrodes(slot, port, dock, channelStatus);
             thread->setAllReferences(slot, port, dock, refSetting);
 
             for (int i = 0; i < NUM_ELECTRODES; i++)
@@ -1242,7 +1249,7 @@ void NPX2Interface::mouseMove(const MouseEvent& event)
         repaint();
     }
 
-    if (x > 225 - channelHeight && x < 225 + channelHeight && y < lowerBound && y > 18 && event.eventComponent->getWidth() > 800)
+    if (x > ZOOMED_CHANNEL_XOFFSET - channelHeight && x < ZOOMED_CHANNEL_XOFFSET + channelHeight && y < lowerBound && y > 18 && event.eventComponent->getWidth() > 800)
     {
         int chan = getNearestChannel(x, y);
         isOverChannel = true;
@@ -1270,7 +1277,7 @@ int NPX2Interface::getNearestChannel(int x, int y)
     if (chan % 2 == 1)
         chan += 1;
 
-    if (x > 225)
+    if (x > ZOOMED_CHANNEL_XOFFSET)
         chan += 1;
 
     return chan;
@@ -1339,7 +1346,7 @@ void NPX2Interface::mouseDown(const MouseEvent& event)
                     channelSelectionState.set(i, 0);
             }
 
-            if (event.x > 225 - channelHeight && event.x < 225 + channelHeight)
+            if (event.x > ZOOMED_CHANNEL_XOFFSET - channelHeight && event.x < ZOOMED_CHANNEL_XOFFSET + channelHeight)
             {
                 int chan = getNearestChannel(event.x, event.y);
 
@@ -1355,7 +1362,7 @@ void NPX2Interface::mouseDown(const MouseEvent& event)
         }
     } else {
 
-        if (event.x > 225 + 10 && event.x < 225 + 150)
+        if (event.x > ZOOMED_CHANNEL_XOFFSET + 10 && event.x < ZOOMED_CHANNEL_XOFFSET + 150)
         {
             int currentAnnotationNum;
 
@@ -1476,7 +1483,7 @@ void NPX2Interface::mouseDrag(const MouseEvent& event)
 
         //std::cout << chanStart << " " << chanEnd << std::endl;
 
-        if (x < 225 + channelHeight)
+        if (x < ZOOMED_CHANNEL_XOFFSET + channelHeight)
         {
             for (int i = 0; i < NUM_ELECTRODES; i++)
             {
@@ -1484,12 +1491,12 @@ void NPX2Interface::mouseDrag(const MouseEvent& event)
                 {
                     if (i % 2 == 1)
                     {
-                        if ((x + w > 225) || (x > 225 && x < 225 + channelHeight))
+                        if ((x + w > ZOOMED_CHANNEL_XOFFSET) || (x > ZOOMED_CHANNEL_XOFFSET && x < ZOOMED_CHANNEL_XOFFSET + channelHeight))
                             channelSelectionState.set(i, 1);
                         else
                             channelSelectionState.set(i, 0);
                     } else {
-                        if ((x < 225) && (x + w > (225 - channelHeight)))
+                        if ((x < ZOOMED_CHANNEL_XOFFSET) && (x + w > (ZOOMED_CHANNEL_XOFFSET - channelHeight)))
                             channelSelectionState.set(i, 1);
                         else
                             channelSelectionState.set(i, 0);
@@ -1559,46 +1566,53 @@ MouseCursor NPX2Interface::getMouseCursor()
 void NPX2Interface::paint(Graphics& g)
 {
 
+    // electrode 1 = pixel 513
+    // electrode 1280 = pixel 33
+    // 640 pixels for 1280 electrodes
+
     int xOffset = 30;
 
-    // draw zoomed-out channels channels
+    // draw zoomed-out channels 
     for (int i = 0; i < channelStatus.size(); i++)
     {
         g.setColour(getChannelColour(i));
-
-        g.setPixel(xOffset + ((i % 2)) * 2, 513 - (i / 2));
-        g.setPixel(xOffset + ((i % 2)) * 2 + 1, 513 - (i / 2));
+        g.setPixel(xOffset + ((i % 2)) * 2, 650 - (i / 2));
+        g.setPixel(xOffset + ((i % 2)) * 2 + 1, 650 - (i / 2));
     }
 
-    // draw channel numbers
-
+    // Draw marks for every 100 channels
     g.setColour(Colours::grey);
     g.setFont(12);
-
     int ch = 0;
-
-    // draw mark for every 100 channels
-    for (int i = 513; i > 33; i -= 50)
+    int width = 100;
+    int height = 12;
+    for (int i = 650; i > 10; i -= 50)
     {
         g.drawLine(6, i, 18, i);
         g.drawLine(44, i, 54, i);
-        g.drawText(String(ch), 59, int(i) - 6, 100, 12, Justification::left, false);
+        g.drawText(String(ch), 59, int(i) - 6, width, height, Justification::left, false);
         ch += 100;
     }
 
-    // draw 960 mark
-    g.drawLine(6, 33, 18, 33);
-    g.drawLine(44, 33, 54, 33);
-    g.drawText(String(960), 59, int(33) - 6, 100, 12, Justification::left, false);
+    // Draw mark for last electrode (NUM_ELECTRODES)
+    g.drawLine(6, 10, 18, 10);
+    g.drawLine(44, 10, 54, 10);
+    g.drawText(String(NUM_ELECTRODES), 59, 4, width, height, Justification::left, false);
 
     // draw shank outline
+    int shankWidth = 10;
+    shankPath.startNewSubPath(27, 10);
+    shankPath.lineTo(27, 650);
+    shankPath.lineTo(27+shankWidth/2, 658);
+    shankPath.lineTo(27+shankWidth, 650);
+    shankPath.lineTo(27+shankWidth, 10);
+    shankPath.closeSubPath();
     g.setColour(Colours::lightgrey);
     g.strokePath(shankPath, PathStrokeType(1.0));
 
     // draw zoomed channels
-
-    lowestChan = (513 - (lowerBound - zoomOffset)) * 2 - 1;
-    highestChan = (513 - (lowerBound - zoomOffset - zoomHeight)) * 2 + 10;
+    lowestChan = (650 - (lowerBound - zoomOffset)) * 2 - 1;
+    highestChan = (650 - (lowerBound - zoomOffset - zoomHeight)) * 2 + 10;
 
     float totalHeight = float(lowerBound + 100);
     channelHeight = totalHeight / ((highestChan - lowestChan) / 2);
@@ -1608,7 +1622,7 @@ void NPX2Interface::paint(Graphics& g)
         if (i >= 0 && i < NUM_ELECTRODES)
         {
 
-            float xLoc = 225 - channelHeight * (1 - (i % 2));
+            float xLoc = ZOOMED_CHANNEL_XOFFSET - channelHeight * (1 - (i % 2));
             float yLoc = lowerBound - ((i - lowestChan - (i % 2)) / 2 * channelHeight);
 
             if (channelSelectionState[i])
@@ -1639,9 +1653,9 @@ void NPX2Interface::paint(Graphics& g)
     g.fillRect(100, lowerBound + 10, 250, 100);
 
     if (isOverZoomRegion)
-        g.setColour(Colour(25,25,25));
+        g.setColour(IS_OVER_ZOOM_REGION_COLOR);
     else
-        g.setColour(Colour(55,55,55));
+        g.setColour(IS_OVER_CHANNEL_COLOR);
 
     Path upperBorder;
     upperBorder.startNewSubPath(5, lowerBound - zoomOffset - zoomHeight);
@@ -1668,10 +1682,9 @@ void NPX2Interface::paint(Graphics& g)
 
     if (isOverChannel)
     {
-        //std::cout << "YES" << std::endl;
-        g.setColour(Colour(55, 55, 55));
+        g.setColour(IS_OVER_CHANNEL_COLOR);
         g.setFont(15);
-        g.drawMultiLineText(channelInfoString, 280, 310, 250);
+        g.drawMultiLineText(channelInfoString, ZOOMED_CHANNEL_XOFFSET+55, 310, 250);
     }
 
     drawLegend(g);
@@ -1697,7 +1710,7 @@ void NPX2Interface::drawAnnotations(Graphics& g)
     
         if (shouldAppear)
         {
-            float xLoc = 225 + 30;
+            float xLoc = ZOOMED_CHANNEL_XOFFSET + 30;
             int ch = a.channels[0];
 
             float midpoint = lowerBound / 2 + 8;
@@ -1736,7 +1749,7 @@ void NPX2Interface::drawAnnotations(Graphics& g)
 
             g.drawMultiLineText(a.text, xLoc + 2, yLoc, 150);
 
-            float xLoc2 = 225 - channelHeight * (1 - (ch % 2)) + channelHeight / 2;
+            float xLoc2 = ZOOMED_CHANNEL_XOFFSET - channelHeight * (1 - (ch % 2)) + channelHeight / 2;
             float yLoc2 = lowerBound - ((ch - lowestChan - (ch % 2)) / 2 * channelHeight) + channelHeight / 2;
 
             g.drawLine(xLoc - 5, yLoc - 3, xLoc2, yLoc2);
@@ -1748,10 +1761,10 @@ void NPX2Interface::drawAnnotations(Graphics& g)
 
 void NPX2Interface::drawLegend(Graphics& g)
 {
-    g.setColour(Colour(55, 55, 55));
+    g.setColour(IS_OVER_CHANNEL_COLOR);
     g.setFont(15);
 
-    int xOffset = 100;
+    int xOffset = 92;
     int yOffset = 310;
 
     switch (visualizationMode)
@@ -1798,8 +1811,6 @@ void NPX2Interface::drawLegend(Graphics& g)
                 g.setColour(Colour(25*i,25*i,50));
                 g.fillRect(xOffset+10, yOffset + 10 + 20*i, 15, 15);
             }
-
-
 
             break;
 
@@ -1897,6 +1908,7 @@ Colour NPX2Interface::getChannelColour(int i)
 
 void NPX2Interface::timerCallback()
 {
+
     Random random;
     uint64 timestamp;
     uint64 eventCode;
@@ -2128,20 +2140,22 @@ Annotation::~Annotation()
 
 // ---------------------------------------
 
+#define NUM_COLORS 6
+
 ColorSelector::ColorSelector(NPX2Interface* np)
 {
     npi = np;
     Path p;
     p.addRoundedRectangle(0,0,15,15,3);
 
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < NUM_COLORS; i++)
     {
         standardColors.add(Colour(245, 245, 245 - 40*i));
         hoverColors.add(   Colour(215, 215, 215 - 40*i));
     }
         
 
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < NUM_COLORS; i++)
     {
         buttons.add(new ShapeButton(String(i), standardColors[i], hoverColors[i], hoverColors[i]));
         buttons[i]->setShape(p, true, true, false);

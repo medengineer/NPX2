@@ -30,14 +30,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "npx2-api/NeuropixAPI.h"
 
-#define MAX_NUM_SLOTS 		32
-#define NUM_PORTS 			4
-#define NUM_DOCKS 			2
-#define NUM_CHANNELS 		384
-#define NUM_ELECTRODES 		1280
-#define SAMPLECOUNT 		64	
+#define MAX_NUM_SLOTS 			32
+#define NUM_PORTS 				4
+#define NUM_DOCKS 				2
+#define NUM_CHANNELS 			384
+#define NUM_ELECTRODES 			1280
+#define NUM_REF_ELECTRODES  	4
+#define REF_ELECTRODES      	{ 128, 508, 888, 1252 }
+#define SAMPLECOUNT 			64	
+#define SAMPLERATE              30000
 
-#define NPX2_MIN_PROBE_SERIAL 19000000000
+#define NPX2_MIN_PROBE_SERIAL 	19000000000
+#define NPX2_BITVOLTS 			0.1950000f
 
 class BasestationConnectBoard;
 class Flex;
@@ -153,9 +157,6 @@ public:
 	ScopedPointer<Flex> flex;
 
 	int reference;
-	int ap_gain;
-	int lfp_gain;
-	bool highpass_on;
 
 	void init();
 
