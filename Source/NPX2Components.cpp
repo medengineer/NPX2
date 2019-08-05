@@ -155,11 +155,6 @@ Probe::Probe(Basestation* bs, int port, int dock) : Thread("probe_" + String(por
 
 	getInfo();
 
-	for (int i = 0; i < NUM_CHANNELS; i++)
-	{
-		channelMap.add(np::electrodebanks_t::None);
-	}
-
 	fifoFillPercentage = 0.0f;
 
 }
@@ -177,56 +172,103 @@ void Probe::setSelected(bool isSelected)
 void Probe::setChannels(Array<int> channelStatus)
 {
 
-	//Reset all channel connections to None. 
-	/*
-	for (int channel = 0; channel < channelMap.size(); channel++)
+	/* ChannelMap as defined in Neuropixels_2_0_System_User_API_V0_3 p. 13/83 */
+
+	//Disconnect all channels from all electrodes
+	for (int ch = 0; ch < NUM_CHANNELS; ch++)
 	{
-		errorCode = np::selectElectrode(basestation->slot, port, dock, channel, shank, np::electrodebanks_t::None);
+		errorCode = np::selectElectrode(basestation->slot, port, dock, ch, shank, 0xFF);
+		if (errorCode != np::SUCCESS)
+		{
+			printf("Failed to disconnect channel: %d w/ error: %d\n", ch, errorCode);
+		}
 	}
 
-	//Use channel (UI) status to set channel connection to proper electrode by bank
-	np::electrodebanks_t bank;
-	for (int channel = 0; channel < channelMap.size(); channel++)
+	//Connect selected electrodes to their corresponding channels 
+	for (int i = 0; i < NUM_ELECTRODES; i++)
 	{
-
-		//TODO: There should be a check here if certain electrode is being used as a ref or not. 
-
-		if (channelStatus[channel])
+		if (channelStatus[i] == 1)
 		{
-			bank = np::electrodebanks_t::BankA;
-		}
-		else if (channelStatus[channel + 1 * 384])
-		{
-			bank = np::electrodebanks_t::BankB;
-		}
-		else if (channelStatus[channel + 2 * 384])
-		{
-			bank = np::electrodebanks_t::BankC;
-		}
-		else if (channelStatus[channel + 3 * 384])
-		{
-			bank = np::electrodebanks_t::BankD;
-		}
-		else
-		{
-			bank = np::electrodebanks_t::None;
-		}
 
-		channelMap.set(channel, bank);
+			int bank = i / NUM_CHANNELS;
+			int block = (i % NUM_CHANNELS) / ELECTRODES_PER_BLOCK;
+			int row = ((i % NUM_CHANNELS) / ELECTRODES_PER_ROW) % ROWS_PER_BLOCK;
 
-		errorCode = np::selectElectrode(basestation->slot, port, dock, channel, shank, bank);
+			//uint8_t bankMask = (1 << (i / NUM_CHANNELS)); 
+			//np::electrodebanks_t bank = static_cast<np::electrodebanks_t>(bankMask);
 
+			int offset;
+			int channel;
+
+			switch (bank) {
+
+				case 0 : //np::electrodebanks_t::BankA :
+				{
+					channel = (row * ELECTRODES_PER_ROW) + (block * ELECTRODES_PER_BLOCK) + (i % ELECTRODES_PER_ROW);
+					break;
+				}
+				case 1 : //np::electrodebanks_t::BankB :
+				{
+					offset = (i % ELECTRODES_PER_ROW) * 4;
+					channel = (row * 7 + offset) % ROWS_PER_BLOCK * ELECTRODES_PER_ROW + (block * ELECTRODES_PER_BLOCK) + (i % ELECTRODES_PER_ROW);
+					break;
+				}
+				case 2 : //np::electrodebanks_t::BankC :
+				{
+					offset = (i % ELECTRODES_PER_ROW) * 8;
+					channel = (row * 5 + offset) % ROWS_PER_BLOCK * ELECTRODES_PER_ROW + (block * ELECTRODES_PER_BLOCK) + (i % ELECTRODES_PER_ROW);
+					break;
+				}
+				case 3: //np::electrodebanks_t::BankD :
+				{
+					offset = (i % ELECTRODES_PER_ROW) * 12;
+					channel = (row * 3 + offset) % ROWS_PER_BLOCK * ELECTRODES_PER_ROW + (block * ELECTRODES_PER_BLOCK) + (i % ELECTRODES_PER_ROW);
+					break;
+				}
+				default:
+				{
+					channel = -1;
+					printf("Error: Should not have reached here!\n");
+				}
+
+			}
+
+			Array<int> electrodes;
+			if (channelMap.contains(channel))
+				electrodes = channelMap[channel];
+			electrodes.add(i);
+			channelMap.set(channel, electrodes);
+			
+			errorCode = np::selectElectrode(basestation->slot, port, dock, channel, shank, bank);
+			if (errorCode != np::SUCCESS)
+			{
+				printf("Failed to set ch: %d to bank: %d w/ error: %d\n", channel, bank, errorCode);
+			}
+
+		}
 	}
 
-	std::cout << "Writing settings for probe on slot: " << basestation->slot << " port: " << port << " dock: " << dock << std::endl;
+	//Display channelMap for debugging as needed 
+	if (false)
+	{
+		printf(" CH |     ELECTRODES      \n");
+		for (HashMap<int, Array<int>>::Iterator i (channelMap); i.next();)
+		{
+			int channel = i.getKey();
+			printf("%3d | ", channel);
+			Array<int> electrodes = i.getValue();
+	    	for (auto electrode : electrodes)
+	    		printf("%4d ", electrode);
+	    	std::cout << std::endl;
+		}
+	}
 
 	bool readCheck = false;
 	errorCode = np::writeProbeConfiguration(basestation->slot, port, dock, readCheck);
-	if (!errorCode == np::SUCCESS)
-		std::cout << "Failed to write channel config " << std::endl;
-	else
-		std::cout << "Successfully wrote channel config " << std::endl;
-	*/
+	if (errorCode != np::SUCCESS)
+	{
+		printf("Failed to write probe configuration w/ error: %d\n", errorCode);
+	}
 
 }
 
@@ -516,21 +558,19 @@ void Basestation::stopAcquisition()
 	errorCode = np::arm(slot);
 }
 
-void Basestation::setChannels(int slot, int port, int dock, Array<int> channelMap)
+void Basestation::setChannels(int slot, int port, int dock, Array<int> channelStatus)
 {
-	/*
 	if (slot == this->slot)
 	{
 		for (int i = 0; i < probes.size(); i++)
 		{
 			if (probes[i]->port == port && probes[i]->dock == dock)
 			{
-				probes[i]->setChannels(channelMap);
+				probes[i]->setChannels(channelStatus);
 				std::cout << "Set electrode-channel connections " << std::endl;
 			}
 		}
 	}
-	*/
 }
 
 bool Basestation::runBist(int slot, int port, int dock, int bistIndex)

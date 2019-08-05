@@ -30,8 +30,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "npx2-api/NeuropixAPI.h"
 
+/* DAQ PROPERTIES */
 #define MAX_NUM_SLOTS 			32
 #define NUM_PORTS 				4
+
+/* NPX 2.0 PROPERTIES */
 #define NUM_DOCKS 				2
 #define NUM_CHANNELS 			384
 #define NUM_ELECTRODES 			1280
@@ -39,9 +42,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define REF_ELECTRODES      	{ 128, 508, 888, 1252 }
 #define SAMPLECOUNT 			64	
 #define SAMPLERATE              30000
-
 #define NPX2_MIN_PROBE_SERIAL 	19000000000
 #define NPX2_BITVOLTS 			0.1950000f
+
+/* SINGLE SHANK PROBE PROPERTIES */
+#define ELECTRODES_PER_BLOCK    32
+#define BLOCKS_PER_BANK			12
+#define ROWS_PER_BLOCK 			16
+#define ELECTRODES_PER_ROW		2
 
 class BasestationConnectBoard;
 class Flex;
@@ -161,7 +169,7 @@ public:
 	void init();
 
 	void setChannels(Array<int> channelStatus);
-	Array<np::electrodebanks_t> channelMap;
+	HashMap<int, Array<int>> channelMap;
 
 	Array<int> apGains;
 	Array<int> lfpGains;

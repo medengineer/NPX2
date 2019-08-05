@@ -163,8 +163,6 @@ void ProbeButton::setSlotAndPortAndDock(int slot, int port, int dock)
     this->port = port;
     this->dock = dock;
 
-    std::cout << "Setting button " << id << " to " << slot << ":" << port << ":" << dock << std::endl;
-
     if (slot == 255 || port == -1)        
         connected = false;
     else
@@ -678,10 +676,17 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     zoomOffset = 0;
     dragZoneWidth = 10;
 
-    /* ENABLE SELECTED CHANNELS */
+    /* ELECTRODE SELECTION */
+    electrodeLabel = new Label("ELECTRODES", "ELECTRODE SELECT");
+    electrodeLabel->setFont(Font("Small Text", 13, Font::plain));
+    electrodeLabel->setBounds(396,100,130,20);
+    electrodeLabel->setColour(Label::textColourId, Colours::grey);
+
+    addAndMakeVisible(electrodeLabel);
+
     enableButton = new UtilityButton("ENABLE", Font("Small Text", 13, Font::plain));
     enableButton->setRadius(3.0f);
-    enableButton->setBounds(400,95,65,22);
+    enableButton->setBounds(400,120,65,22);
     enableButton->addListener(this);
     enableButton->setTooltip("Enable selected channel(s)");
 
@@ -689,22 +694,30 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
 
     enableViewButton = new UtilityButton("VIEW", Font("Small Text", 12, Font::plain));
     enableViewButton->setRadius(3.0f);
-    enableViewButton->setBounds(480,97,45,18);
+    enableViewButton->setBounds(480,120,45,18);
     enableViewButton->addListener(this);
     enableViewButton->setTooltip("View channel enabled state");
 
     addAndMakeVisible(enableViewButton);
 
+    disableButton = new UtilityButton("DISABLE", Font("Small Text", 13, Font::plain));
+    disableButton->setRadius(3.0f);
+    disableButton->setBounds(400,145,65,22);
+    disableButton->addListener(this);
+    disableButton->setTooltip("Disable selected channel(s)");
+
+    addAndMakeVisible(disableButton);
+
     /* REFERENCE SELECTION */
     referenceLabel = new Label("REFERENCE", "REFERENCE");
     referenceLabel->setFont(Font("Small Text", 13, Font::plain));
-    referenceLabel->setBounds(396,130,100,20);
+    referenceLabel->setBounds(396,175,100,20);
     referenceLabel->setColour(Label::textColourId, Colours::grey);
 
     addAndMakeVisible(referenceLabel);
 
     referenceComboBox = new ComboBox("ReferenceComboBox");
-    referenceComboBox->setBounds(400, 150, 65, 22);
+    referenceComboBox->setBounds(400, 195, 65, 22);
     referenceComboBox->addListener(this);
     referenceComboBox->addItem("Ext", 1);
     referenceComboBox->addItem("Tip", 2);
@@ -718,7 +731,7 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
 
     referenceViewButton = new UtilityButton("VIEW", Font("Small Text", 12, Font::plain));
     referenceViewButton->setRadius(3.0f);
-    referenceViewButton->setBounds(480, 150, 45, 18);
+    referenceViewButton->setBounds(480, 195, 45, 18);
     referenceViewButton->addListener(this);
     referenceViewButton->setTooltip("View reference of each channel");
 
@@ -727,29 +740,29 @@ NPX2Interface::NPX2Interface(XmlElement info, int slot, int port, int dock, NPX2
     /* ANNOTATION */
     annotationLabel = new Label("ANNOTATION_LABEL", "ANNOTATION");
     annotationLabel->setFont(Font("Small Text", 13, Font::plain));
-    annotationLabel->setBounds(396,185,200,20);
+    annotationLabel->setBounds(396,230,200,20);
     annotationLabel->setColour(Label::textColourId, Colours::grey);
     addAndMakeVisible(annotationLabel);
 
     annotationEditor = new Label("ANNOTATION", "Custom annotation");
-    annotationEditor->setBounds(396,205,200,20);
+    annotationEditor->setBounds(396,250,200,20);
     annotationEditor->setColour(Label::textColourId, Colours::white);
     annotationEditor->setEditable(true);
     annotationEditor->addListener(this);
     addAndMakeVisible(annotationEditor);
 
+    colorSelector = new ColorSelector(this);
+    colorSelector->setBounds(400, 280, 250, 20);
+
+    addAndMakeVisible(colorSelector);
+
     annotationButton = new UtilityButton("ADD", Font("Small Text", 12, Font::plain));
     annotationButton->setRadius(3.0f);
-    annotationButton->setBounds(400,265,40,18);
+    annotationButton->setBounds(400,310,40,18);
     annotationButton->addListener(this);
     annotationButton->setTooltip("Add annotation to selected channels");
 
     addAndMakeVisible(annotationButton);
-
-    colorSelector = new ColorSelector(this);
-    colorSelector->setBounds(400, 235, 250, 20);
-
-    addAndMakeVisible(colorSelector);
 
     /* BUILT IN SELF TESTS */
     /* TODO: BIST may not yet be implemeneted for 2.0 probes, disable for now...
@@ -1009,21 +1022,22 @@ void NPX2Interface::buttonClicked(Button* button)
         {
             channelSelectionState.set(i, 1);
         }
-
         repaint();
 
-    } else if (button == enableViewButton)
+    }
+    else if (button == enableViewButton)
     {
         visualizationMode = 0;
         stopTimer();
         repaint();
-    } 
-     else if (button == apGainViewButton)
+    }
+    else if (button == apGainViewButton)
     {
         visualizationMode = 1;
         stopTimer();
         repaint();
-    } else if (button == lfpGainViewButton)
+    }
+    else if (button == lfpGainViewButton)
     {
         visualizationMode = 2;
         stopTimer();
@@ -1034,62 +1048,42 @@ void NPX2Interface::buttonClicked(Button* button)
         visualizationMode = 3;
         stopTimer();
         repaint();
-    } else if (button == enableButton)
+    }
+    else if (button == enableButton || button == disableButton)
     {
         if (!editor->acquisitionIsActive)
         {
-            int maxChan = 0;
+
+            int refs[NUM_REF_ELECTRODES] = REF_ELECTRODES;
+            int refChannelIndex = referenceComboBox->getSelectedId() - 1;
 
             for (int i = 0; i < NUM_ELECTRODES; i++)
             {
                 if (channelSelectionState[i] == 1) // channel is currently selected
                 {
-
-                    if (channelStatus[i] != -1) // channel can be turned on
+                    if ( refChannelIndex > 1 && i == refs[refChannelIndex-2] - 1 )
                     {
-                        if (channelStatus[i] > -1) // not a reference
-                            channelStatus.set(i, 1); // turn channel on
-                        else
-                            channelStatus.set(i, -2); // turn channel on
-
-                        int startPoint = -768;
-                        int jump = 384;
-
-                        for (int j = startPoint; j <= -startPoint; j += jump)
-                        {
-                            //std::cout << "Checking channel " << j + i << std::endl;
-
-                            int newChan = j + i;
-
-                            if (newChan >= 0 && newChan < NUM_ELECTRODES && newChan != i)
-                            {
-                                //std::cout << "  In range" << std::endl;
-
-                                if (channelStatus[newChan] != -1)
-                                {
-                                    //std::cout << "    Turning off." << std::endl;
-                                    if (channelStatus[i] > -1) // not a reference
-                                        channelStatus.set(newChan, 0); // turn connected channel off
-                                    else
-                                        channelStatus.set(newChan, -3); // turn connected channel off
-                                }
-                            }
-                        }
+                        String warning = "Attempting to enable/disable a reference electrode!";
+                        String details = "Electrode " + String(i+1) + " is currently set as an internal reference electrode. \n";
+                        details += "Please select a different reference to enable/disable this electrode.";
+                        AlertWindow::showMessageBox(AlertWindow::AlertIconType::WarningIcon, warning, details, "OK");
+                    }
+                    else
+                    {
+                        channelStatus.set(i, button == enableButton ? 1 : 0);
                     }
                 }
             }
-
             thread->selectElectrodes(slot, port, dock, channelStatus);
             repaint();
         }
 
-    } else if (button == outputOnButton)
+    }
+    else if (button == outputOnButton)
     {
 
         if (!editor->acquisitionIsActive)
         {
-
-
             for (int i = 0; i < NUM_ELECTRODES; i++)
             {
                 if (channelSelectionState[i] == 1)
@@ -1099,10 +1093,10 @@ void NPX2Interface::buttonClicked(Button* button)
                 }
 
             }
-
             repaint();
         }
-    } else if (button == outputOffButton)
+    }
+    else if (button == outputOffButton)
     {
         if (!editor->acquisitionIsActive)
         {
@@ -1118,7 +1112,8 @@ void NPX2Interface::buttonClicked(Button* button)
             repaint();
         }
 
-    } else if (button == annotationButton)
+    }
+    else if (button == annotationButton)
     {
         //Array<int> a = getSelectedChannels();
 
@@ -1131,7 +1126,8 @@ void NPX2Interface::buttonClicked(Button* button)
             annotations.add(Annotation(s, a, colorSelector->getCurrentColour()));
 
         repaint();
-    } else if (button == bistButton)
+    }
+    else if (button == bistButton)
     {
         if (!editor->acquisitionIsActive)
         {
@@ -1566,8 +1562,8 @@ MouseCursor NPX2Interface::getMouseCursor()
 void NPX2Interface::paint(Graphics& g)
 {
 
-    // electrode 1 = pixel 513
-    // electrode 1280 = pixel 33
+    // electrode 1 = pixel 650
+    // electrode 1280 = pixel 10
     // 640 pixels for 1280 electrodes
 
     int xOffset = 30;
@@ -2154,7 +2150,6 @@ ColorSelector::ColorSelector(NPX2Interface* np)
         hoverColors.add(   Colour(215, 215, 215 - 40*i));
     }
         
-
     for (int i = 0; i < NUM_COLORS; i++)
     {
         buttons.add(new ShapeButton(String(i), standardColors[i], hoverColors[i], hoverColors[i]));

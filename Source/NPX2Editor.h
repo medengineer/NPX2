@@ -229,22 +229,19 @@ private:
     
     XmlElement neuropix_info;
 
-    ScopedPointer<ComboBox> lfpGainComboBox;
-    ScopedPointer<ComboBox> apGainComboBox;
     ScopedPointer<ComboBox> referenceComboBox;
-    ScopedPointer<ComboBox> filterComboBox;
 
     ScopedPointer<ComboBox> bistComboBox;
 
     ScopedPointer<UtilityButton> enableButton;
+    ScopedPointer<UtilityButton> disableButton;
+
     ScopedPointer<UtilityButton> selectAllButton;
 
     ScopedPointer<Viewport> infoLabelView;
     ScopedPointer<Label> infoLabel;
-    ScopedPointer<Label> lfpGainLabel;
-    ScopedPointer<Label> apGainLabel;
+    ScopedPointer<Label> electrodeLabel;
     ScopedPointer<Label> referenceLabel;
-    ScopedPointer<Label> filterLabel;
     ScopedPointer<Label> outputLabel;
     ScopedPointer<Label> bistLabel;
     ScopedPointer<Label> annotationEditor;
