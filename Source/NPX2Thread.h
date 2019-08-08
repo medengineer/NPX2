@@ -79,7 +79,7 @@ public:
         void startRecording();
         void stopRecording();
 
-        int getProbeStatus(int slot, int port, int dock);
+        ProbeStatus getProbeStatus(int slot, int port, int dock);
         void setSelectedProbe(int slot, int port, int dock);
         bool isSelectedProbe(int slot, int port, int dock);
 

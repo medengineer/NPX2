@@ -147,7 +147,7 @@ Probe::Probe(Basestation* bs, int port, int dock) : Thread("probe_" + String(por
 	basestation(bs), port(port), dock(dock), shank(0)
 {
 
-	setStatus(0);
+	setStatus(ProbeStatus::DISCONNECTED);
 	setSelected(false);
 
 	flex = new Flex(this);
@@ -159,7 +159,7 @@ Probe::Probe(Basestation* bs, int port, int dock) : Thread("probe_" + String(por
 
 }
 
-void Probe::setStatus(int status)
+void Probe::setStatus(ProbeStatus status)
 {
 	this->status = status;
 }
@@ -380,7 +380,7 @@ Basestation::Basestation(int slot_number) : probesInitialized(false)
 					if (probe->serial_number / NPX2_MIN_PROBE_SERIAL > 0)
 					{
 						probes.add(probe);
-						probes[probes.size() - 1]->setStatus(2); 
+						probes[probes.size() - 1]->setStatus(ProbeStatus::CONNECTING); 
 					}
 					else
 					{
@@ -408,7 +408,7 @@ void Basestation::init()
 			std::cout << "  FAILED!." << std::endl;
 		else
 		{
-			probes[i]->setStatus(1);
+			probes[i]->setStatus(ProbeStatus::CONNECTED);
 			std::cout << "  Success!" << std::endl;
 		}
 	}
@@ -515,7 +515,7 @@ void Basestation::initializeProbes()
 				std::cout << "     Probe initialized." << std::endl;
 				probes[i]->timestamp = 0;
 				probes[i]->eventCode = 0;
-				probes[i]->setStatus(1); //READY
+				probes[i]->setStatus(ProbeStatus::CONNECTED);
 			}
 			else {
 				std::cout << "     Failed with error code " << errorCode << std::endl;

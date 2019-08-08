@@ -112,8 +112,8 @@ public:
     void setSlotAndPortAndDock(int, int, int);
     void setSelectedState(bool);
 
-    void setProbeStatus(int status);
-    int getProbeStatus();
+    void setProbeStatus(ProbeStatus);
+    ProbeStatus getProbeStatus();
     void timerCallback();
 
     int slot;
@@ -126,7 +126,7 @@ private:
     void paintButton(Graphics& g, bool isMouseOver, bool isButtonDown);
 
     int id;
-    int status;
+    ProbeStatus status;
     bool selected;
 };
 

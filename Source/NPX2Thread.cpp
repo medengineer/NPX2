@@ -559,7 +559,7 @@ void NPX2Thread::setAutoRestart(bool autoRestart)
 }
 
 
-int NPX2Thread::getProbeStatus(int slot, int port, int dock)
+ProbeStatus NPX2Thread::getProbeStatus(int slot, int port, int dock)
 {
     for (int i = 0; i < basestations.size(); i++)
     {
@@ -575,7 +575,7 @@ int NPX2Thread::getProbeStatus(int slot, int port, int dock)
         }
 
     }
-    return 0;
+    return ProbeStatus::DISCONNECTED;
 }
 
 bool NPX2Thread::isSelectedProbe(int slot, int port, int dock)

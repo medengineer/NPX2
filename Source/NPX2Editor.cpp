@@ -147,9 +147,9 @@ void FifoMonitor::paint(Graphics& g)
     g.fillRoundedRectangle(2, this->getHeight()-2-barHeight, this->getWidth() - 4, barHeight, 2);
 }
 
-ProbeButton::ProbeButton(int id_, NPX2Thread* thread_) : id(id_), thread(thread_), status(0), selected(false)
+ProbeButton::ProbeButton(int id_, NPX2Thread* thread_) : id(id_), thread(thread_), selected(false)
 {
-    connected = false;
+    status = ProbeStatus::DISCONNECTED;
 
     setRadioGroupId(979);
 
@@ -184,7 +184,7 @@ void ProbeButton::paintButton(Graphics& g, bool isMouseOver, bool isButtonDown)
 
     ///g.setGradientFill(ColourGradient(Colours::lightcyan, 0, 0, Colours::lightskyblue, 10,10, true));
 
-    if (status == 1)
+    if (status == ProbeStatus::CONNECTED)
     {
         if (selected)
         {
@@ -200,7 +200,7 @@ void ProbeButton::paintButton(Graphics& g, bool isMouseOver, bool isButtonDown)
                 g.setColour(Colours::green);
         }
     }
-    else if (status == 2)
+    else if (status == ProbeStatus::CONNECTING)
     {
         if (selected)
         {
@@ -223,13 +223,13 @@ void ProbeButton::paintButton(Graphics& g, bool isMouseOver, bool isButtonDown)
     g.fillEllipse(2, 2, 11, 11);
 }
 
-void ProbeButton::setProbeStatus(int status)
+void ProbeButton::setProbeStatus(ProbeStatus status)
 {
     this->status = status;
     repaint();
 }
 
-int ProbeButton::getProbeStatus()
+ProbeStatus ProbeButton::getProbeStatus()
 {
     return status;
 }
@@ -238,8 +238,7 @@ void ProbeButton::timerCallback()
 {
     if (slot != 255)
     {
-        int status = thread->getProbeStatus(slot, port, dock);
-        setProbeStatus(status);
+        setProbeStatus(thread->getProbeStatus(slot, port, dock));
     }
 }
 
@@ -265,7 +264,7 @@ void BackgroundLoader::run()
     bool selectedFirstAvailableProbe = false;
     for (auto button : ed->probeButtons)
     {
-        if (button->getProbeStatus() == 1 && (!selectedFirstAvailableProbe))
+        if (button->getProbeStatus() == ProbeStatus::CONNECTED && (!selectedFirstAvailableProbe))
         {
             ed->buttonEvent(button);
             selectedFirstAvailableProbe = true;

@@ -148,6 +148,14 @@ public:
 	void getInfo();
 };
 
+typedef enum {
+	DISCONNECTED, //There is no communication between the probe and computer
+	CONNECTING,   //Computer has detected the probe and is attempting to connect
+	CONNECTED,    //Computer has established a valid connection with the probe
+	ACQUIRING,    //The probe is currently streaming data to the computer
+	RECORDING, 	  //The prove is recording the streaming data
+} ProbeStatus;
+
 class Probe : public NeuropixComponent, public Thread
 {
 public:
@@ -175,10 +183,9 @@ public:
 	Array<int> lfpGains;
 
 	void setReferences(np::channelreference_t refId, np::electrodebanks_t refBank);
-	void calibrate();
 
-	void setStatus(int status_);
-	int status;
+	void setStatus(ProbeStatus);
+	ProbeStatus status;
 
 	void setSelected(bool isSelected_);
 	bool isSelected;
