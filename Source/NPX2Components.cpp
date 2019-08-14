@@ -287,6 +287,8 @@ void Probe::setReferences(np::channelreference_t ref, np::electrodebanks_t bank)
 void Probe::run()
 {
 
+	int64 timestamp = 0;
+
 	while (!threadShouldExit())
 	{
 
@@ -305,7 +307,8 @@ void Probe::run()
 
 			eventCode = pckinfo->Status >> 6; //TODO: Confirm event code is same bit...
 
-			int64 npx_timestamp = pckinfo->Timestamp;
+			//int64 npx_timestamp = pckinfo->Timestamp;
+			timestamp++;
 
 			float samples[NUM_CHANNELS];
 
@@ -314,7 +317,7 @@ void Probe::run()
 				samples[i] = 100.0f * float(data[i]) / 8192; //TODO: Confirm scale factor...
 			}
 
-			stream->addToBuffer(samples, &npx_timestamp, &eventCode, 1);
+			stream->addToBuffer(samples, &timestamp, &eventCode, 1);
 
 			size_t packetsAvailable;
 			size_t headroom;
@@ -379,8 +382,8 @@ Basestation::Basestation(int slot_number) : probesInitialized(false)
 					Probe* probe = new Probe(this, port, dock);
 					if (probe->serial_number / NPX2_MIN_PROBE_SERIAL > 0)
 					{
+						probe->setStatus(ProbeStatus::CONNECTING);
 						probes.add(probe);
-						probes[probes.size() - 1]->setStatus(ProbeStatus::CONNECTING); 
 					}
 					else
 					{
