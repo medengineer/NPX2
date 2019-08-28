@@ -13,6 +13,21 @@
 extern "C" {
 #endif	
 
+// A fatal error occurred, the system must be reset completely to proceed
+#define DBG_FATAL    0
+// An error occurred, the function could not complete its operation
+#define DBG_ERROR    1
+// A condition occurred that may indicate a unintended use or configuration. 
+// The function will still run/resume as normal
+#define DBG_WARNING  2
+// Additional runtime information is printed to the log.
+// (example: status information during BIST operation)
+#define DBG_INFO     3
+// More detailed debug-specific log information is printed
+#define DBG_DEBUG    4
+// Print all available log statements
+#define DBG_VERBOSE  5
+
 	NP_EXPORT void NP_APIC dbg_setlevel(int level);
 	NP_EXPORT int NP_APIC dbg_getlevel(void);
 	NP_EXPORT void NP_APIC dbg_getversion_datetime(char* dst, size_t maxlen);

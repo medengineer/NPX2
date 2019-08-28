@@ -142,8 +142,9 @@ void NPX2Thread::openConnection()
             
     }
 
-    np::setParameter(np::NP_PARAM_BUFFERSIZE, MAXSTREAMBUFFERSIZE);
-    np::setParameter(np::NP_PARAM_BUFFERCOUNT, MAXSTREAMBUFFERCOUNT);
+    /* MAXSTREAMBUFFERSIZE, MAXSTREAMBUFFERCOUNT are not inclued in API 2.8
+    //np::setParameter(np::NP_PARAM_BUFFERSIZE, MAXSTREAMBUFFERSIZE);
+    //np::setParameter(np::NP_PARAM_BUFFERCOUNT, MAXSTREAMBUFFERCOUNT);
 
 }
 
