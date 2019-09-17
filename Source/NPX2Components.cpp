@@ -541,7 +541,7 @@ void Basestation::startAcquisition()
 
 	for (int i = 0; i < probes.size(); i++)
 	{
-		std::cout << "Probe " << int(probes[i]->port) << " setting timestamp to 0" << std::endl;
+		std::cout << "Probe " << int(probes[i]->port) << " Dock: " << int(probes[i]->dock) << " setting timestamp to 0" << std::endl;
 		probes[i]->timestamp = 0;
 		//std::cout << "... and clearing buffers" << std::endl;
 		probes[i]->stream->clear();
