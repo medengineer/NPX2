@@ -142,7 +142,7 @@ void NPX2Thread::openConnection()
             
     }
 
-    /* MAXSTREAMBUFFERSIZE, MAXSTREAMBUFFERCOUNT are not inclued in API 2.8
+    //MAXSTREAMBUFFERSIZE, MAXSTREAMBUFFERCOUNT are not inclued in API 2.8 
     //np::setParameter(np::NP_PARAM_BUFFERSIZE, MAXSTREAMBUFFERSIZE);
     //np::setParameter(np::NP_PARAM_BUFFERCOUNT, MAXSTREAMBUFFERCOUNT);
 
@@ -490,14 +490,17 @@ void NPX2Thread::stopRecording()
 
 void NPX2Thread::setDefaultChannelNames()
 {
-    for (int bs_num = 0; bs_num < basestations.size(); bs_num++)
+    int chan = 0;
+
+    for (int probe_num = 0; probe_num < totalProbes; probe_num++)
     {
         for (int i = 0; i < NUM_CHANNELS; i++)
         {
             ChannelCustomInfo info;
             info.name = "CH" + String(i + 1);
             info.gain = NPX2_BITVOLTS;
-            channelInfo.set(i, info);
+            channelInfo.set(chan, info);
+            chan++;
         }
     }
 }
